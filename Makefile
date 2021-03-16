@@ -1,11 +1,11 @@
 CC := clang
 
 # Sources and flags needed to compile static library
-SRC := lib/mem.h lib/dw_fs.h lib/dw_fs.c
+SRC := lib/conf.h lib/err.h lib/mem.h lib/bitmap.h lib/dwfs.h lib/dir.h lib/mem.c lib/dir.c lib/bitmap.c lib/dwfs.c
 CFLAGS := -c
 
 # Sources and flags to compile for unit testing
-TESTSRC := lib/dw_fs_test.c
+TESTSRC := lib/test_dwfs.c
 TESTFLAGS := -lcheck
 
 .PHONY: all

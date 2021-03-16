@@ -4,25 +4,13 @@
 #include <stdlib.h>
 
 
-void *allocate(size_t size)
-{
-  return malloc(size);
-}
+void *allocate(size_t size);
 
-void deallocate(void *ptr)
-{
-  free(ptr);
-}
+void deallocate(void *ptr);
 
 // Get a block of specified size from the pre-allocated memory
-void *get_block()
-{
-  return calloc(BLOCK_SIZE, 1);
-}
+void *get_block();
 
-void free_block(void *ptr)
-{
-  free(ptr);
-}
+void free_block(void *ptr);
 
 #endif //DW_FS_MEM_H
