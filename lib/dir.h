@@ -32,39 +32,35 @@ dw_dir *dw_dir_init();
 
 // Searches for the file with the name
 int file_exists(
-        dw_dir *dir,
-        const char *name
+        dw_dir *,
+        const char *
                );
 
 // Searches for a file with the given name. If the file is found, the FCB for the
 // node is returned. If it doesn't exist, the error value is set and null is returned
 fp_node *search_file(
-        dw_dir *dir,
-        const char *name,
-        int *err
+        dw_dir *,
+        const char *,
+        int *
                     );
-
-void *iter_dir(
-        dw_dir *dir,
-        int *err
-              );
 
 // Add directory entry
 fp_node *add_entry(
-        dw_dir *dir,
-        const char *name,
-        int *err
+        dw_dir *,
+        void *,
+        const char *,
+        int *
                   );
 
 // Remove directory entry
 void remove_entry(
-        dw_dir *dir,
-        const char *name,
-        int *err
+        dw_dir *,
+        const char *,
+        int *
                  );
 
 fp_node **gather_entries(dw_dir *, int *, int *);
 
-void dw_dir_free(dw_dir *self);
+void dw_dir_free(dw_dir *);
 
 #endif //DW_FS_DIR_H

@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdlib.h>
 #include "dwfs.h"
 #include "dir.h"
@@ -7,9 +8,7 @@
 dwfs *dwfs_init(unsigned int num_blocks)
 {
   dwfs *self = calloc(1, sizeof(dwfs));
-  self->blocks = allocate(BLOCK_SIZE * num_blocks);
-  self->n_blocks = num_blocks;
-
+  self->blocks = allocate(num_blocks);
   self->dir = dw_dir_init();
   return self;
 }
@@ -33,7 +32,7 @@ dw_file dwfs_create(
     return (dw_file) {};
   }
 
-  fp_node *fp = add_entry(self->dir, name, err);
+  fp_node *fp = add_entry(self->dir, get_block(self->blocks), name, err);
 
   if (*err != 0) {
     return (dw_file) {};
@@ -117,7 +116,7 @@ void dwfs_write(
   if (d != 0) {
     for (; d->next != 0; d = d->next);
   } else {
-    file->fp->data = get_block();
+    file->fp->data = get_block(self->blocks);
     file->fp->data->bytes = 0;
     file->fp->data->next = 0;
     d = file->fp->data;
@@ -133,7 +132,7 @@ void dwfs_write(
 
     // Create new data nodes as needed
     if (written < n) {
-      d->next = get_block();
+      d->next = get_block(self->blocks);
 
       // Check that the allocation was successful
       if (d->next == 0) {

@@ -44,12 +44,13 @@ fp_node *search_file(
 
 fp_node *add_entry(
         dw_dir *self,
+        void * block,
         const char *name,
         int *err
                   )
 {
   // Allocate space for a new file
-  fp_node *fp = get_block();
+  fp_node *fp = block;
   int i = 0;
   // Copy name to fp
   for (i = 0; name[i] != '\0' && i < MAX_FILENAME_LENGTH - 1; i++) {

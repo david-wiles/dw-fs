@@ -1,6 +1,7 @@
 #include <check.h>
 #include <printf.h>
 #include "dwfs.h"
+#include "conf.h"
 
 
 dwfs *test_init_fs()
@@ -20,12 +21,61 @@ dwfs *test_init_fs()
   return instance;
 }
 
+START_TEST(test_mem_create)
+{
+  dw_mem *mem = allocate(1);
+  ck_assert_ptr_nonnull(mem);
+  ck_assert_int_eq(mem->n_blocks, 1);
+  ck_assert_int_eq(mem->n_free, 1);
+}
+
+START_TEST(test_mem_get_block)
+{
+  dw_mem *mem = allocate(1);
+  ck_assert_ptr_nonnull(mem);
+
+  void *block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks, block);
+
+  deallocate(mem);
+
+  mem = allocate(12);
+  ck_assert_ptr_nonnull(mem);
+
+  block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks, block);
+
+  block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE), block);
+
+  block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block);
+
+  block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block);
+
+  block = get_block(mem);
+  ck_assert_ptr_nonnull(block);
+  ck_assert_int_eq(mem->n_free, 0);
+  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 4), block);
+}
+
 START_TEST(test_dw_fs_init)
 {
   dwfs *instance = dwfs_init(1);
 
   ck_assert_ptr_nonnull(instance->blocks);
-  ck_assert_int_eq(instance->n_blocks, 1);
+  ck_assert_int_eq(instance->blocks->n_blocks, 1);
 
   // Test size of allocated blocks
 }
@@ -35,7 +85,7 @@ START_TEST(test_dw_fs_free)
   dwfs *instance = dwfs_init(1);
 
   ck_assert_ptr_nonnull(instance->blocks);
-  ck_assert_int_eq(instance->n_blocks, 1);
+  ck_assert_int_eq(instance->blocks->n_blocks, 1);
 
   dwfs_free(instance);
 }
@@ -247,9 +297,53 @@ START_TEST(test_file_write)
   ck_assert_ptr_nonnull(fp->data);
   ck_assert_str_eq((char *) fp->data->data, "asdfasdf");
 
+  dwfs_write(instance, &f, "asdfasdf", 8, &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_ptr_nonnull(fp->data);
+  ck_assert_str_eq((char *) fp->data->data, "asdfasdfasdfasdf");
+
+  dwfs_create(instance, "file 2", &err);
+  ck_assert_int_eq(err, 0);
+
+  fp = instance->dir->head;
+
+  ck_assert_str_eq(fp->name, "file 2");
+
+  f = (dw_file) {
+          "file 2",
+          fp
+  };
+
+  dwfs_write(instance, &f,
+             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+             1000, &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_ptr_nonnull(fp->data);
+
+  // On my development machine, the MAX_DATA_SIZE macro expands to 500
+  ck_assert_int_eq(fp->data->bytes, 500);
+  ck_assert_str_eq((char *) fp->data->data,
+                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  ck_assert_ptr_nonnull(fp->data->next);
+  ck_assert_int_eq(fp->data->next->bytes, 500);
+  ck_assert_str_eq((char *) fp->data->next->data,
+                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
   dwfs_free(instance);
 }
 
+
+Suite *mem_suite()
+{
+  Suite *suite;
+  TCase *t_case;
+  suite = suite_create("dwfs_create and destroy");
+  t_case = tcase_create("Core");
+  tcase_add_test(t_case, test_mem_create);
+  tcase_add_test(t_case, test_mem_get_block);
+  suite_add_tcase(suite, t_case);
+  return suite;
+}
 
 Suite *file_suite()
 {
@@ -280,14 +374,16 @@ Suite *fs_suite()
 int main()
 {
   int number_failed;
-  Suite *file, *fs;
+  Suite *file, *fs, *mem;
   SRunner *runner;
 
+  mem = mem_suite();
   file = file_suite();
   fs = fs_suite();
 
-  runner = srunner_create(file);
-  srunner_add_suite(runner, fs);
+  runner = srunner_create(mem);
+//  srunner_add_suite(runner, file);
+//  srunner_add_suite(runner, fs);
 
   srunner_run_all(runner, CK_NORMAL);
   number_failed = srunner_ntests_failed(runner);

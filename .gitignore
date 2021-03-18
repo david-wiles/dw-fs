@@ -1,2 +1,6 @@
+lib/main.c
+
 .idea/
-bin/debug/dw-fs.dSYM/
+build/
+bin/
+debug/
