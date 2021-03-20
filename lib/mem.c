@@ -1,25 +1,38 @@
 #include <stdlib.h>
 
 #include "mem.h"
+#include "err.h"
 #include "conf.h"
 
 
 // Size is the number of blocks
 dw_mem *allocate(unsigned int size)
 {
-  dw_mem *mem = calloc(1, sizeof(dw_mem *));
-  mem->blocks = malloc(size * BLOCK_SIZE);
+  dw_mem *mem = 0;
+  if ((mem = (dw_mem *) calloc(1, sizeof(dw_mem))) == 0) {
+    return 0;
+  }
+
+  if ((mem->blocks = malloc(size * BLOCK_SIZE)) == 0) {
+    free(mem);
+    return 0;
+  }
+
+  if ((mem->bitset = bitset_create_with_capacity(size)) == 0) {
+    free(mem->blocks);
+    free(mem);
+    return 0;
+  };
 
   mem->n_free = size;
   mem->n_blocks = size;
-  mem->bitset = bitset_create();
 
   return mem;
 }
 
 void deallocate(dw_mem *mem)
 {
-  bitset_free(mem->bitset);
+//  bitset_free(mem->bitset); // why does this cause seg faults...
   free(mem->blocks);
   free(mem);
 }
@@ -46,15 +59,19 @@ void *get_block(dw_mem *self)
   return 0;
 }
 
-void free_block(dw_mem *self, void *ptr)
+void free_block(dw_mem *self, void *ptr, int *err)
 {
   // Determine where the ptr is relative to the block start
   uintptr_t diff = (uintptr_t) ptr - (uintptr_t) self->blocks;
   int idx = (int) diff / BLOCK_SIZE;
 
-  // Reset pointer
-  bitset_set_to_value(self->bitset, idx, 0);
-  self->n_free++;
+  if (bitset_get(self->bitset, idx) == 1) {
+    // Reset pointer
+    bitset_set_to_value(self->bitset, idx, 0);
+    self->n_free++;
+  } else {
+    *err = ERR_PTR_NOT_ALLOCATED;
+  }
 }
 
 

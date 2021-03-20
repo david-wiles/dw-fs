@@ -23,6 +23,6 @@ void deallocate(dw_mem *);
 // Get a block of specified size from the pre-allocated memory
 void *get_block(dw_mem *);
 
-void free_block(dw_mem *, void *);
+void free_block(dw_mem *, void *, int *);
 
 #endif //DW_FS_MEM_H

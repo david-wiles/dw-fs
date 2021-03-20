@@ -53,7 +53,7 @@ fp_node *add_entry(
                   );
 
 // Remove directory entry
-void remove_entry(
+fp_node *remove_entry(
         dw_dir *,
         const char *,
         int *

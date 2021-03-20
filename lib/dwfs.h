@@ -21,7 +21,6 @@ struct dw_file
 struct dwfs
 {
   dw_mem *blocks;
-
   dw_dir *dir; // Directory data node. New files are pushed to the front of the stack
 };
 

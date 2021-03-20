@@ -79,7 +79,7 @@ unsigned char *dwfs_read(
 
   // Copy data from blocks to buffer
   unsigned char *data = calloc(n, sizeof(unsigned char));
-  int n_read = 0;
+  unsigned int n_read = 0;
 
   // Iterate data blocks
   for (data_node *d = file->fp->data; d != 0 && n_read < n; d = d->next) {
@@ -174,6 +174,13 @@ void dwfs_delete(
         int *err // Any errors that occur are returned in this variable
                 )
 {
-  remove_entry(self->dir, name, err);
+  fp_node *fp = remove_entry(self->dir, name, err);
+  if (err != 0) return;
+
+  if (fp->data == 0) free_block(self->blocks, fp->data, err);
+  if (err != 0) return;
+
+  if (fp != 0) free_block(self->blocks, fp, err);
+  if (err != 0) return;
 }
 

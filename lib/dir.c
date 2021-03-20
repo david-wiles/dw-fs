@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include "dir.h"
 #include "err.h"
-#include "mem.h"
 
 
 dw_dir *dw_dir_init()
 {
-  dw_dir *dir = calloc(1, sizeof(dw_dir *));
+  dw_dir *dir = calloc(1, sizeof(dw_dir));
   dir->head = 0;
   dir->n_files = 0;
   return dir;
@@ -44,7 +43,7 @@ fp_node *search_file(
 
 fp_node *add_entry(
         dw_dir *self,
-        void * block,
+        void *block,
         const char *name,
         int *err
                   )
@@ -53,7 +52,7 @@ fp_node *add_entry(
   fp_node *fp = block;
   int i = 0;
   // Copy name to fp
-  for (i = 0; name[i] != '\0' && i < MAX_FILENAME_LENGTH - 1; i++) {
+  for (i = 0; name[i] != '\0' && i < (int) MAX_FILENAME_LENGTH - 1; i++) {
     fp->name[i] = name[i];
   }
 
@@ -67,11 +66,11 @@ fp_node *add_entry(
   return fp;
 }
 
-void remove_entry(
+fp_node *remove_entry(
         dw_dir *self,
         const char *name,
         int *err
-                 )
+                     )
 {
   fp_node *last = 0,
           *fp = 0;
@@ -84,7 +83,7 @@ void remove_entry(
 
   if (fp == 0) {
     *err = ERR_NOT_EXISTS;
-    return;
+    return 0;
   }
 
   // Now, fp is the node to delete and last is the node linking to fp
@@ -95,8 +94,7 @@ void remove_entry(
   }
 
   self->n_files--;
-  free(fp->data);
-  free(fp);
+  return fp;
 }
 
 fp_node **gather_entries(
