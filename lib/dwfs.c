@@ -33,12 +33,11 @@ dw_file dwfs_create(
   }
 
   fp_node *fp = add_entry(self->dir, get_block(self->blocks), name, err);
+  if (*err != 0) return (dw_file) {};
 
-  if (*err != 0) {
-    return (dw_file) {};
-  }
+//  ft_open_file(self->tab, fp, err);
+  if (*err != 0) return (dw_file) {};
 
-  *err = 0;
   // fp should NEVER be null for a file
   return (dw_file) {name, fp};
 }
@@ -50,9 +49,10 @@ dw_file dwfs_open(
                  )
 {
   fp_node *fp = search_file(self->dir, name, err);
-  if (err != 0) {
-    return (dw_file) {};
-  }
+  if (*err != 0) return (dw_file) {};
+
+//  ft_open_file(self->tab, fp, err);
+  if (*err != 0) return (dw_file) {};
 
   return (dw_file) {fp->name, fp};
 }
@@ -64,7 +64,7 @@ void dwfs_close(
         int *err  // Any errors that occur are returned in this variable
                )
 {
-  // Update file table
+//  ft_close_file(self->tab, file->fp, err);
 }
 
 // Reads specified number of bytes from the file into a char array
@@ -76,10 +76,17 @@ unsigned char *dwfs_read(
                         )
 {
   // Check if file is open, if not return error
+//  if (ft_is_open(self->tab, file->fp, err) == 0) {
+//    *err = ERR_FILE_NOT_OPEN;
+//    return 0;
+//  }
 
   // Copy data from blocks to buffer
   unsigned char *data = calloc(n, sizeof(unsigned char));
   unsigned int n_read = 0;
+
+//  ft_read_lock(self->tab, file->fp, err);
+//  if (*err != 0) return 0;
 
   // Iterate data blocks
   for (data_node *d = file->fp->data; d != 0 && n_read < n; d = d->next) {
@@ -88,6 +95,8 @@ unsigned char *dwfs_read(
       data[n_read++] = d->data[i];
     }
   }
+
+//  ft_read_unlock(self->tab, file->fp, err);
 
   return data;
 }
@@ -103,14 +112,21 @@ void dwfs_write(
                )
 {
   // Check if file is open, if not return error
-  // Copy data from bytes to file blocks
+//  if (ft_is_open(self->tab, file->fp, err) == 0) {
+//    *err = ERR_FILE_NOT_OPEN;
+//    return;
+//  }
 
+  // Copy data from bytes to file blocks
   int max_data_size = BLOCK_SIZE - (sizeof(data_node *) + sizeof(int)),
           b = 0,
           i = 0,
           to_write = 0,
           written = 0;
   data_node *d = file->fp->data;
+
+//  ft_write_lock(self->tab, file->fp, err);
+  if (*err != 0) return;
 
   // Find last data node in file
   if (d != 0) {
@@ -145,6 +161,8 @@ void dwfs_write(
       d->next = 0;
     }
   }
+
+//  ft_write_unlock(self->tab, file->fp, err);
 }
 
 char **dwfs_dir(
@@ -174,7 +192,12 @@ void dwfs_delete(
         int *err // Any errors that occur are returned in this variable
                 )
 {
-  fp_node *fp = remove_entry(self->dir, name, err);
+  fp_node *fp = search_file(self->dir, name, err);
+  if (*err != 0) return;
+
+//  if (ft_is_open(self->tab, fp, err) != 0) return;
+
+  remove_entry(self->dir, name, err);
   if (err != 0) return;
 
   if (fp->data == 0) free_block(self->blocks, fp->data, err);
@@ -182,5 +205,7 @@ void dwfs_delete(
 
   if (fp != 0) free_block(self->blocks, fp, err);
   if (err != 0) return;
+
+
 }
 

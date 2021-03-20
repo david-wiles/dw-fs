@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <check.h>
 #include <printf.h>
 #include <time.h>

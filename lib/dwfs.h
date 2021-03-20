@@ -5,7 +5,7 @@
 #include "err.h"
 #include "conf.h"
 #include "mem.h"
-
+#include "file_table.h"
 
 // typedef
 typedef struct dw_file dw_file;
@@ -22,6 +22,7 @@ struct dwfs
 {
   dw_mem *blocks;
   dw_dir *dir; // Directory data node. New files are pushed to the front of the stack
+  file_table *tab;
 };
 
 /**
