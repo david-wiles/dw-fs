@@ -3,7 +3,7 @@ CC := clang
 # Sources and flags needed to compile static library
 VENDOR_SRC := vendor/lemire/cbitset/bitset.o vendor/mikhail-j/libc_hsearch_r/search_hsearch_r.c
 VENDOR_FLAGS := -Ivendor/lemire/cbitset/include -Ivendor/mikhail-j/libc_hsearch_r/include
-SRC := lib/mem.c lib/dir.c lib/file_table.c lib/dwfs.c
+SRC := lib/mem.c lib/hash_table.c lib/dir.c lib/file_table.c lib/dwfs.c
 OBJ := $(SRC:%=build/%.o)
 
 # Sources and flags to compile for unit testing

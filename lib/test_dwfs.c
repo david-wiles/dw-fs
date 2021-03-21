@@ -4,6 +4,7 @@
 #include <time.h>
 #include "dwfs.h"
 #include "conf.h"
+#include "hash_table.h"
 
 
 dwfs *test_init_fs()
@@ -345,6 +346,248 @@ START_TEST(test_dw_fs_search_file)
 }
 
 
+START_TEST(test_ft_init)
+{
+  file_table *ft = ft_init(1);
+  ck_assert_ptr_nonnull(ft);
+
+  file_table *ft2 = ft_init(2048);
+  ck_assert_ptr_nonnull(ft2);
+}
+
+START_TEST(test_ft_free)
+{
+  file_table *ft = ft_init(1);
+  ck_assert_ptr_nonnull(ft);
+  ft_free(ft);
+
+  file_table *ft2 = ft_init(2048);
+  ck_assert_ptr_nonnull(ft2);
+  ft_free(ft2);
+}
+
+START_TEST(test_ft_entry_init)
+{
+  ft_entry *entry = ft_entry_init(malloc(1), 1);
+  ck_assert_ptr_nonnull(entry);
+  ck_assert_int_eq(entry->open_cnt, 1);
+  ck_assert_int_eq(entry->read_mu, 0);
+}
+
+START_TEST(test_ft_is_open)
+{
+  file_table *ft = ft_init(4);
+  ck_assert_ptr_nonnull(ft);
+
+  int err = 0;
+  bool is_open = ft_is_open(ft, "filename", &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_int_eq(is_open, 0);
+}
+
+START_TEST(test_ft_open_file)
+{
+  file_table *ft = ft_init(4);
+  ck_assert_ptr_nonnull(ft);
+
+  int err = 0;
+  fp_node fp1 = (fp_node) {"file 1"};
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_ptr_nonnull(entry);
+  ck_assert_int_eq(entry->open_cnt, 1);
+  ck_assert_int_eq(entry->read_mu, 0);
+
+  fp_node fp2 = (fp_node) {"file 2"};
+  ft_open_file(ft, &fp2, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry2 = (ft_entry *) hfind(ft, fp2.name);
+  ck_assert_ptr_nonnull(entry2);
+  ck_assert_int_eq(entry2->open_cnt, 1);
+  ck_assert_int_eq(entry2->read_mu, 0);
+
+  ft_open_file(ft, &fp2, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry3 = (ft_entry *) hfind(ft, fp2.name);
+  ck_assert_ptr_nonnull(entry3);
+  ck_assert_int_eq(entry3->open_cnt, 2);
+  ck_assert_int_eq(entry3->read_mu, 0);
+}
+
+START_TEST(test_ft_close_file)
+{
+  file_table *ft = ft_init(4);
+  ck_assert_ptr_nonnull(ft);
+
+  int err = 0;
+  fp_node fp1 = (fp_node) {"file 1"};
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_ptr_nonnull(entry);
+  ck_assert_int_eq(entry->open_cnt, 1);
+  ck_assert_int_eq(entry->read_mu, 0);
+
+  ft_close_file(ft, fp1.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_ptr_nonnull(entry2);
+  ck_assert_int_eq(entry2->open_cnt, 0);
+  ck_assert_int_eq(entry2->read_mu, 0);
+
+  ck_assert_int_eq(ft_is_open(ft, "file 1", &err), 0);
+
+  fp_node fp2 = (fp_node) {"file 2"};
+  ft_open_file(ft, &fp2, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_open_file(ft, &fp2, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_close_file(ft, fp2.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry3 = (ft_entry *) hfind(ft, fp2.name);
+  ck_assert_ptr_nonnull(entry3);
+  ck_assert_int_eq(entry3->open_cnt, 1);
+  ck_assert_int_eq(entry3->read_mu, 0);
+
+  ft_close_file(ft, fp2.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry4 = (ft_entry *) hfind(ft, fp2.name);
+  ck_assert_ptr_nonnull(entry4);
+  ck_assert_int_eq(entry4->open_cnt, 0);
+  ck_assert_int_eq(entry4->read_mu, 0);
+
+  ft_close_file(ft, fp2.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  fp_node fp3 = (fp_node) {"third file"};
+  ft_close_file(ft, fp3.name, &err);
+  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+}
+
+START_TEST(test_ft_read_lock) {
+  file_table *ft = ft_init(4);
+  fp_node fp1 = (fp_node) {"file 1"};
+  fp_node fp2 = (fp_node) {"file 2"};
+  int err = 0;
+
+  ft_read_lock(ft, fp2.name, &err);
+  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+  err = 0;
+
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_read_lock(ft, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry1 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->read_mu, 1);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+
+  ft_read_lock(ft, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->read_mu, 2);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+}
+
+START_TEST(test_ft_read_unlock) {
+  file_table *ft = ft_init(4);
+  fp_node fp1 = (fp_node) {"file 1"};
+  fp_node fp2 = (fp_node) {"file 2"};
+  int err = 0;
+
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_read_lock(ft, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry1 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->read_mu, 1);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+
+  ft_read_unlock(ft, fp1.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->read_mu, 0);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+
+  ft_read_lock(ft, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_read_lock(ft, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry3 = (ft_entry *) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->read_mu, 2);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+}
+
+START_TEST(test_ft_write_lock) {
+  file_table *ft = ft_init(4);
+  fp_node fp1 = (fp_node) {"file 1"};
+  fp_node fp2 = (fp_node) {"file 2"};
+  int err = 0;
+
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_write_lock(ft, fp1.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry1 = (ft_entry*) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+  ck_assert_int_eq(entry1->read_mu, 0);
+
+  // We should not be able to acquire the lock
+  ck_assert_int_ne(pthread_mutex_trylock(&entry1->write_mu), 0);
+
+  ft_write_lock(ft, fp2.name, &err);
+  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+}
+
+START_TEST(test_ft_write_unlock) {
+  file_table *ft = ft_init(4);
+  fp_node fp1 = (fp_node) {"file 1"};
+  fp_node fp2 = (fp_node) {"file 2"};
+  int err = 0;
+
+  ft_open_file(ft, &fp1, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_write_lock(ft, fp1.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ft_entry *entry1 = (ft_entry*) hfind(ft, fp1.name);
+  ck_assert_int_eq(entry1->open_cnt, 1);
+  ck_assert_int_eq(entry1->read_mu, 0);
+
+  // We should not be able to acquire the lock
+  ck_assert_int_ne(pthread_mutex_trylock(&entry1->write_mu), 0);
+
+  ft_write_unlock(ft, fp1.name, &err);
+  ck_assert_int_eq(err, 0);
+
+  ck_assert_int_eq(pthread_mutex_trylock(&entry1->write_mu), 0);
+
+  ft_write_lock(ft, fp2.name, &err);
+  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+}
+
+
 START_TEST(test_file_create)
 {
   dwfs *instance = dwfs_init(12);
@@ -503,6 +746,9 @@ START_TEST(test_file_write)
           fp
   };
 
+  dwfs_open(instance, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
   dwfs_write(instance, &f, "asdfasdf", 8, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_ptr_nonnull(fp->data);
@@ -524,6 +770,9 @@ START_TEST(test_file_write)
           "file 2",
           fp
   };
+
+  dwfs_open(instance, "file 2", &err);
+  ck_assert_int_eq(err, 0);
 
   dwfs_write(instance, &f,
              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -551,6 +800,9 @@ START_TEST(test_file_read)
   dwfs_create(instance, "file 1", &err);
   ck_assert_int_eq(err, 0);
 
+  dwfs_open(instance, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
   fp_node *fp = instance->dir->head;
   dw_file f = (dw_file) {
           "file 1",
@@ -576,6 +828,9 @@ START_TEST(test_file_read)
   dwfs_create(instance, "file 2", &err);
   ck_assert_int_eq(err, 0);
 
+  dwfs_open(instance, "file 2", &err);
+  ck_assert_int_eq(err, 0);
+
   fp = instance->dir->head;
 
   ck_assert_str_eq(fp->name, "file 2");
@@ -593,7 +848,8 @@ START_TEST(test_file_read)
 
   read_bytes = dwfs_read(instance, &f, 1000, &err);
   ck_assert_ptr_nonnull(read_bytes);
-  ck_assert_str_eq(read_n(read_bytes, 1000), "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  ck_assert_str_eq(read_n(read_bytes, 1000),
+                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
   dwfs_free(instance);
 }
@@ -629,6 +885,26 @@ Suite *file_suite()
   return suite;
 }
 
+Suite *ft_suite()
+{
+  Suite *suite;
+  TCase *t_case;
+  suite = suite_create("dwfs_create and destroy");
+  t_case = tcase_create("Core");
+  tcase_add_test(t_case, test_ft_init);
+  tcase_add_test(t_case, test_ft_free);
+  tcase_add_test(t_case, test_ft_entry_init);
+  tcase_add_test(t_case, test_ft_is_open);
+  tcase_add_test(t_case, test_ft_open_file);
+  tcase_add_test(t_case, test_ft_close_file);
+  tcase_add_test(t_case, test_ft_read_lock);
+  tcase_add_test(t_case, test_ft_read_unlock);
+  tcase_add_test(t_case, test_ft_write_lock);
+  tcase_add_test(t_case, test_ft_write_unlock);
+  suite_add_tcase(suite, t_case);
+  return suite;
+}
+
 Suite *fs_suite()
 {
   Suite *suite;
@@ -645,16 +921,18 @@ Suite *fs_suite()
 int main()
 {
   int number_failed;
-  Suite *file, *fs, *mem;
+  Suite *file, *fs, *mem, *ft;
   SRunner *runner;
 
   mem = mem_suite();
   file = file_suite();
   fs = fs_suite();
+  ft = ft_suite();
 
   runner = srunner_create(mem);
   srunner_add_suite(runner, file);
   srunner_add_suite(runner, fs);
+  srunner_add_suite(runner, ft);
 
   srunner_run_all(runner, CK_NORMAL);
   number_failed = srunner_ntests_failed(runner);
