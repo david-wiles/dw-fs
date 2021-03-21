@@ -1,3 +1,19 @@
+// Copyright 2021 David Wiles <david@wiles.fyi>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+// associated documentation files (the "Software"), to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial
+// portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+// LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 
 #include "mem.h"
@@ -6,35 +22,35 @@
 
 
 // Size is the number of blocks
-dw_mem *allocate(unsigned int size)
+dw_mem *allocate(unsigned int n)
 {
   dw_mem *mem = 0;
   if ((mem = (dw_mem *) calloc(1, sizeof(dw_mem))) == 0) {
     return 0;
   }
 
-  if ((mem->blocks = malloc(size * BLOCK_SIZE)) == 0) {
+  if ((mem->blocks = malloc(n * BLOCK_SIZE)) == 0) {
     free(mem);
     return 0;
   }
 
-  if ((mem->bitset = bitset_create_with_capacity(size)) == 0) {
+  if ((mem->bitset = bitset_create_with_capacity(n)) == 0) {
     free(mem->blocks);
     free(mem);
     return 0;
   };
 
-  mem->n_free = size;
-  mem->n_blocks = size;
+  mem->n_free = n;
+  mem->n_blocks = n;
 
   return mem;
 }
 
-void deallocate(dw_mem *mem)
+void deallocate(dw_mem *self)
 {
 //  bitset_free(mem->bitset); // why does this cause seg faults...
-  free(mem->blocks);
-  free(mem);
+  free(self->blocks);
+  free(self);
 }
 
 // Get a block of specified size from the pre-allocated memory
@@ -59,10 +75,14 @@ void *get_block(dw_mem *self)
   return 0;
 }
 
-void free_block(dw_mem *self, void *ptr, int *err)
+void free_block(
+        dw_mem *self,
+        void *block,
+        int *err
+               )
 {
   // Determine where the ptr is relative to the block start
-  uintptr_t diff = (uintptr_t) ptr - (uintptr_t) self->blocks;
+  uintptr_t diff = (uintptr_t) block - (uintptr_t) self->blocks;
   int idx = (int) diff / BLOCK_SIZE;
 
   if (bitset_get(self->bitset, idx) == 1) {

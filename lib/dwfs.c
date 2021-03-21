@@ -1,3 +1,19 @@
+// Copyright 2021 David Wiles <david@wiles.fyi>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+// associated documentation files (the "Software"), to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial
+// portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+// LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "dwfs.h"
@@ -22,35 +38,28 @@ void dwfs_free(dwfs *self)
   free(self);
 }
 
-dw_file dwfs_create(
+void dwfs_create(
         dwfs *self,
-        char *name,
+        char *filename,
         int *err
-                   )
+                )
 {
   // Check whether file exists
-  if (file_exists(self->dir, name) != 0) {
+  if (file_exists(self->dir, filename) != false) {
     *err = ERR_NON_UNIQUE_NAME;
-    return (dw_file) {};
+    return;
   }
 
-  fp_node *fp = add_entry(self->dir, get_block(self->blocks), name, err);
-  if (*err != 0) return (dw_file) {};
-
-//  ft_open_file(self->tab, fp, err);
-  if (*err != 0) return (dw_file) {};
-
-  // fp should NEVER be null for a file
-  return (dw_file) {name, fp};
+  add_entry(self->dir, get_block(self->blocks), filename, err);
 }
 
 dw_file dwfs_open(
         dwfs *self,
-        char *name,   // Name of the file to open
-        int *err // Any errors that occur are returned in this variable
+        char *filename,
+        int *err
                  )
 {
-  fp_node *fp = search_file(self->dir, name, err);
+  fp_node *fp = search_file(self->dir, filename, err);
   if (*err != 0) return (dw_file) {};
 
   ft_open_file(self->tab, fp, err);
@@ -59,11 +68,10 @@ dw_file dwfs_open(
   return (dw_file) {fp->name, fp};
 }
 
-// Close an opened file object
 void dwfs_close(
         dwfs *self,
-        dw_file *file, // Reference to the file to close
-        int *err  // Any errors that occur are returned in this variable
+        dw_file *file,
+        int *err
                )
 {
   ft_close_file(self->tab, file->name, err);
@@ -72,34 +80,36 @@ void dwfs_close(
 // Reads specified number of bytes from the file into a char array
 unsigned char *dwfs_read(
         dwfs *self,
-        dw_file *file,  // Reference to an open file
-        unsigned int n, // Number of bytes to read
-        int *err   // Any errors that occur are returned in this variable
+        dw_file *file,
+        unsigned int n,
+        unsigned int *n_read,
+        int *err
                         )
 {
+  unsigned int read = 0;
   // Check if file is open, if not return error
-  if (ft_is_open(self->tab, file->name, err) == 0) {
+  if (ft_is_open(self->tab, file->name, err) == false) {
     *err = ERR_FILE_NOT_OPEN;
-    return 0;
+    return NULL;
   }
 
   // Copy data from blocks to buffer
   unsigned char *data = calloc(n, sizeof(unsigned char));
-  unsigned int n_read = 0;
 
   ft_read_lock(self->tab, file->name, err);
-  if (*err != 0) return 0;
+  if (*err != 0) return NULL;
 
   // Iterate data blocks
-  for (data_node *d = file->fp->data; d != 0 && n_read < n; d = d->next) {
+  for (data_node *d = file->fp->data; d != NULL && read < n; d = d->next) {
     // Iterate each byte in the block
     for (int i = 0; i < d->bytes; i++) {
-      data[n_read++] = d->data[i];
+      data[read++] = d->data[i];
     }
   }
 
   ft_read_unlock(self->tab, file->name, err);
 
+  *n_read = read;
   return data;
 }
 
@@ -107,14 +117,14 @@ unsigned char *dwfs_read(
 // Writes specified number of bytes to an open file
 void dwfs_write(
         dwfs *self,
-        dw_file *file, // The open file to write bytes to
-        const char *bytes,   // The bytes to write to the file
-        int n,         // Number of bytes to write
-        int *err  // Any errors that occur are returned in this variable
+        dw_file *file,
+        const unsigned char *bytes,
+        int n,
+        int *err
                )
 {
   // Check if file is open, if not return error
-  if (ft_is_open(self->tab, file->name, err) == 0) {
+  if (ft_is_open(self->tab, file->name, err) == false) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
@@ -131,12 +141,12 @@ void dwfs_write(
   if (*err != 0) return;
 
   // Find last data node in file
-  if (d != 0) {
-    for (; d->next != 0; d = d->next);
+  if (d != NULL) {
+    for (; d->next != NULL; d = d->next);
   } else {
     file->fp->data = get_block(self->blocks);
     file->fp->data->bytes = 0;
-    file->fp->data->next = 0;
+    file->fp->data->next = NULL;
     d = file->fp->data;
   }
 
@@ -175,7 +185,7 @@ char **dwfs_dir(
   int n_files = 0;
   fp_node **entries = gather_entries(self->dir, &n_files, err);
   if (err != 0) {
-    return 0;
+    return NULL;
   }
 
   char **filenames = calloc(n_files, sizeof(char *));
@@ -190,24 +200,22 @@ char **dwfs_dir(
 
 void dwfs_delete(
         dwfs *self,
-        char *name,   // Name of the file to remove
-        int *err // Any errors that occur are returned in this variable
+        char *name,
+        int *err
                 )
 {
   fp_node *fp = search_file(self->dir, name, err);
   if (*err != 0) return;
 
-  if (ft_is_open(self->tab, fp->name, err) != 0) return;
+  if (ft_is_open(self->tab, fp->name, err) != false) return;
 
   remove_entry(self->dir, name, err);
   if (err != 0) return;
 
-  if (fp->data == 0) free_block(self->blocks, fp->data, err);
+  if (fp->data == NULL) free_block(self->blocks, fp->data, err);
   if (err != 0) return;
 
-  if (fp != 0) free_block(self->blocks, fp, err);
+  if (fp != NULL) free_block(self->blocks, fp, err);
   if (err != 0) return;
-
-
 }
 
