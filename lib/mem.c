@@ -22,7 +22,7 @@
 
 
 // Size is the number of blocks
-dw_mem *allocate(unsigned int n)
+dw_mem *dw_mem_allocate(unsigned int n)
 {
   dw_mem *mem = 0;
   if ((mem = (dw_mem *) calloc(1, sizeof(dw_mem))) == 0) {
@@ -46,7 +46,7 @@ dw_mem *allocate(unsigned int n)
   return mem;
 }
 
-void deallocate(dw_mem *self)
+void dw_mem_deallocate(dw_mem *self)
 {
 //  bitset_free(mem->bitset); // why does this cause seg faults...
   free(self->blocks);
@@ -54,7 +54,7 @@ void deallocate(dw_mem *self)
 }
 
 // Get a block of specified size from the pre-allocated memory
-void *get_block(dw_mem *self)
+void *dw_mem_malloc(dw_mem *self)
 {
   if (self->n_free == 0) {
     return 0;
@@ -75,11 +75,11 @@ void *get_block(dw_mem *self)
   return 0;
 }
 
-void free_block(
+void dw_mem_free(
         dw_mem *self,
         void *block,
         int *err
-               )
+                )
 {
   // Determine where the ptr is relative to the block start
   uintptr_t diff = (uintptr_t) block - (uintptr_t) self->blocks;

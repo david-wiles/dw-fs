@@ -25,6 +25,8 @@
 #define DW_FS_DIR_H
 
 #include <stdbool.h>
+#include <time.h>
+#include <pthread.h>
 #include "conf.h"
 
 
@@ -38,14 +40,18 @@ typedef struct data_node data_node;
 // files in the directory
 struct dw_dir
 {
-  fp_node *head; // Pointer to current head of directory
-  int n_files;   // Number of files currently in the directory
+  fp_node *head;      // Pointer to current head of directory
+  int n_files;        // Number of files currently in the directory
+//  pthread_mutex_t mu; // Directory mutex to synchronize directory access
+//  int read_cnt;       // Number of threads currently reading the directory
 };
 
 // File pointer node. Contains metadata and pointers to other blocks in the file system
 struct fp_node
 {
   char name[MAX_FILENAME_LENGTH]; // Name of the file
+  time_t create_time;             // File creation time
+  time_t mod_time;                // File modification time
   fp_node *next;                  // Link to the next file node, for directory structure
   data_node *data;                // Link to the actual data contained in this file
 };
@@ -64,18 +70,18 @@ dw_dir *dw_dir_init();
 void dw_dir_free(dw_dir *);
 
 // Searches for the file with the filename. Returns a boolean indicating whether the file exists
-bool file_exists(
+bool dw_dir_file_exists(
         dw_dir *self,        // Directory instance
         const char *filename // Filename to search for
-                );
+                       );
 
 // Searches for a file with the given name. If the file is found, the FCB for the
 // node is returned. If it doesn't exist, the error value is set and null is returned
-fp_node *search_file(
+fp_node *dw_dir_search_file(
         dw_dir *self,         // Directory instance
         const char *filename, // Filename to search for
         int *err              // Error return value
-                    );
+                           );
 
 // Add directory entry.
 //
@@ -83,28 +89,28 @@ fp_node *search_file(
 // parameter. Due to this, the function can't fail due to out-of-memory conditions.
 //
 // If the entry is added successfully, the new node is returned
-fp_node *add_entry(
+fp_node *dw_dir_add(
         dw_dir *self,         // Directory entry
         void *block,          // Pre-allocated memory
         const char *filename, // Filename of the new file to add
         int *err              // Error return value
-                  );
+                   );
 
 // Remove directory entry with the given name
 //
 // Since filenames must be unique, this will always delete the correct file.
-void remove_entry(
+void dw_dir_remove(
         dw_dir *self,         // Directory entry
         const char *filename, // Filename of the file entry to delete
         int *err              // error return value
-                 );
+                  );
 
 // Create an array of all directory entry nodes and return to the caller
 // this really isn't a good idea...
-fp_node **gather_entries(
+fp_node **dw_dir_gather_entries(
         dw_dir *self,
         int *len,
         int *err
-                        );
+                               );
 
 #endif //DW_FS_DIR_H

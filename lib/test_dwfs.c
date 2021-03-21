@@ -55,230 +55,230 @@ char *read_n(const unsigned char *block, int n)
 
 START_TEST(test_mem_create)
 {
-  dw_mem *mem = allocate(1);
+  dw_mem *mem = dw_mem_allocate(1);
   ck_assert_ptr_nonnull(mem);
   ck_assert_ptr_nonnull(mem->bitset);
   ck_assert_int_eq(mem->n_blocks, 1);
   ck_assert_int_eq(mem->n_free, 1);
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 START_TEST(test_mem_get_block)
 {
-  dw_mem *mem = allocate(1);
+  dw_mem *mem = dw_mem_allocate(1);
   ck_assert_ptr_nonnull(mem);
 
-  void *block = get_block(mem);
+  void *block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks, block);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 
-  mem = allocate(12);
+  mem = dw_mem_allocate(12);
   ck_assert_ptr_nonnull(mem);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 11);
   ck_assert_ptr_eq(mem->blocks, block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 10);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 9);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 8);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 7);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 4), block);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 
-  mem = allocate(4);
+  mem = dw_mem_allocate(4);
   ck_assert_ptr_nonnull(mem);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 3);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 2);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 1);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block);
 
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block);
 
   // Make sure get_block returns null when there are no free blocks
-  block = get_block(mem);
+  block = dw_mem_malloc(mem);
   ck_assert_ptr_null(block);
   ck_assert_int_eq(mem->n_free, 0);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 START_TEST(test_mem_free_block_single)
 {
-  dw_mem *mem = allocate(4);
+  dw_mem *mem = dw_mem_allocate(4);
   ck_assert_ptr_nonnull(mem);
 
-  void *block = get_block(mem);
+  void *block = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block);
   ck_assert_int_eq(mem->n_free, 3);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block);
 
   int err = 0;
-  free_block(mem, block, &err);
+  dw_mem_free(mem, block, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
 
-  free_block(mem, block, &err);
+  dw_mem_free(mem, block, &err);
   ck_assert_int_eq(err, ERR_PTR_NOT_ALLOCATED);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 START_TEST(test_mem_free_block_multiple)
 {
-  dw_mem *mem = allocate(4);
+  dw_mem *mem = dw_mem_allocate(4);
   ck_assert_ptr_nonnull(mem);
 
   int err = 0;
 
-  void *block1 = get_block(mem);
+  void *block1 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block1);
   ck_assert_int_eq(mem->n_free, 3);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
 
-  void *block2 = get_block(mem);
+  void *block2 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block2);
   ck_assert_int_eq(mem->n_free, 2);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2);
 
-  void *block3 = get_block(mem);
+  void *block3 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block3);
   ck_assert_int_eq(mem->n_free, 1);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block3);
 
-  void *block4 = get_block(mem);
+  void *block4 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block4);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4);
 
-  free_block(mem, block1, &err);
+  dw_mem_free(mem, block1, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
   ck_assert_int_eq(mem->n_free, 1);
 
-  free_block(mem, block4, &err);
+  dw_mem_free(mem, block4, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 3), 0);
   ck_assert_int_eq(mem->n_free, 2);
 
-  free_block(mem, block3, &err);
+  dw_mem_free(mem, block3, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 2), 0);
   ck_assert_int_eq(mem->n_free, 3);
 
-  free_block(mem, block2, &err);
+  dw_mem_free(mem, block2, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
   ck_assert_int_eq(mem->n_free, 4);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 START_TEST(test_mem_repeated_ops)
 {
-  dw_mem *mem = allocate(4);
+  dw_mem *mem = dw_mem_allocate(4);
   ck_assert_ptr_nonnull(mem);
   int err = 0;
 
-  void *block1 = get_block(mem);
+  void *block1 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block1);
   ck_assert_int_eq(mem->n_free, 3);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
 
-  void *block2 = get_block(mem);
+  void *block2 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block2);
   ck_assert_int_eq(mem->n_free, 2);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2);
 
-  void *block3 = get_block(mem);
+  void *block3 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block3);
   ck_assert_int_eq(mem->n_free, 1);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block3);
 
-  void *block4 = get_block(mem);
+  void *block4 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block4);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4);
 
-  void *none = get_block(mem);
+  void *none = dw_mem_malloc(mem);
   ck_assert_ptr_null(none);
   ck_assert_int_eq(mem->n_free, 0);
 
-  free_block(mem, block1, &err);
+  dw_mem_free(mem, block1, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
   ck_assert_int_eq(mem->n_free, 1);
 
-  void *block1_2 = get_block(mem);
+  void *block1_2 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block1_2);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
 
-  free_block(mem, block2, &err);
+  dw_mem_free(mem, block2, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
   ck_assert_int_eq(mem->n_free, 1);
 
-  free_block(mem, block4, &err);
+  dw_mem_free(mem, block4, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 3), 0);
   ck_assert_int_eq(mem->n_free, 2);
 
-  void *block2_2 = get_block(mem);
+  void *block2_2 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block2_2);
   ck_assert_int_eq(mem->n_free, 1);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2_2);
 
-  void *block4_2 = get_block(mem);
+  void *block4_2 = dw_mem_malloc(mem);
   ck_assert_ptr_nonnull(block4_2);
   ck_assert_int_eq(mem->n_free, 0);
   ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4_2);
 
-  free_block(mem, block2_2, &err);
+  dw_mem_free(mem, block2_2, &err);
   ck_assert_int_eq(err, 0);
   ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
   ck_assert_int_eq(mem->n_free, 1);
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 // Repeated operations to ensure longevity
 START_TEST(test_mem_longevity)
 {
-  dw_mem *mem = allocate(4);
+  dw_mem *mem = dw_mem_allocate(4);
   void *block = 0;
   int err = 0;
 
@@ -288,12 +288,12 @@ START_TEST(test_mem_longevity)
 
   for (int i = 0; i < 100000; i++) {
     if (rand() & 1)
-      block = get_block(mem);
+      block = dw_mem_malloc(mem);
     else
-      free_block(mem, block, &err);
+      dw_mem_free(mem, block, &err);
   }
 
-  deallocate(mem);
+  dw_mem_deallocate(mem);
 }
 
 
@@ -326,13 +326,13 @@ START_TEST(test_dw_fs_search_file)
   ck_assert_int_eq(err, 0);
 
   // Search can find file
-  fp_node *f = search_file(instance->dir, "file 1", &err);
+  fp_node *f = dw_dir_search_file(instance->dir, "file 1", &err);
   ck_assert_int_eq(err, 0);
   ck_assert_ptr_nonnull(f);
   ck_assert_str_eq(f->name, "file 1");
 
   // Search for non-existent file returns null pointer
-  f = search_file(instance->dir, "file 0", &err);
+  f = dw_dir_search_file(instance->dir, "file 0", &err);
   ck_assert_int_eq(err, ERR_NOT_EXISTS);
   ck_assert_ptr_null(f);
 
@@ -345,17 +345,17 @@ START_TEST(test_dw_fs_search_file)
   dwfs_create(instance, "file 7", &err);
 
   err = 0;
-  f = search_file(instance->dir, "file 7", &err);
+  f = dw_dir_search_file(instance->dir, "file 7", &err);
   ck_assert_int_eq(err, 0);
   ck_assert_ptr_nonnull(f);
   ck_assert_str_eq(f->name, "file 7");
 
-  f = search_file(instance->dir, "file 6", &err);
+  f = dw_dir_search_file(instance->dir, "file 6", &err);
   ck_assert_int_eq(err, 0);
   ck_assert_ptr_nonnull(f);
   ck_assert_str_eq(f->name, "file 6");
 
-  f = search_file(instance->dir, "file 5", &err);
+  f = dw_dir_search_file(instance->dir, "file 5", &err);
   ck_assert_int_eq(err, 0);
   ck_assert_ptr_nonnull(f);
   ck_assert_str_eq(f->name, "file 5");
@@ -873,6 +873,40 @@ START_TEST(test_file_read)
   dwfs_free(instance);
 }
 
+START_TEST(test_dir)
+{
+  dwfs *instance = dwfs_init(256);
+  ck_assert_ptr_nonnull(instance);
+
+  int err = 0;
+  dwfs_create(instance, "file 1", &err);
+  ck_assert_int_eq(err, 0);
+
+  char **files = dwfs_dir(instance, &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_str_eq(files[0], "file 1");
+
+  dwfs_create(instance, "2nd file", &err);
+  ck_assert_int_eq(err, 0);
+  dwfs_create(instance, "another filename", &err);
+  ck_assert_int_eq(err, 0);
+  dwfs_create(instance, "file 5", &err);
+  ck_assert_int_eq(err, 0);
+  dwfs_create(instance, "file 6", &err);
+  ck_assert_int_eq(err, 0);
+  dwfs_create(instance, "f", &err);
+  ck_assert_int_eq(err, 0);
+
+  files = dwfs_dir(instance, &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_str_eq(files[0], "f");
+  ck_assert_str_eq(files[1], "file 6");
+  ck_assert_str_eq(files[2], "file 5");
+  ck_assert_str_eq(files[3], "another filename");
+  ck_assert_str_eq(files[4], "2nd file");
+  ck_assert_str_eq(files[5], "file 1");
+}
+
 
 Suite *mem_suite()
 {
@@ -933,6 +967,7 @@ Suite *fs_suite()
   tcase_add_test(t_case, test_dw_fs_init);
   tcase_add_test(t_case, test_dw_fs_free);
   tcase_add_test(t_case, test_dw_fs_search_file);
+  tcase_add_test(t_case, test_dir);
   suite_add_tcase(suite, t_case);
   return suite;
 }

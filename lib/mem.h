@@ -42,16 +42,16 @@ struct dw_mem
 };
 
 // Allocate a new block of memory with n blocks
-dw_mem *allocate(unsigned int n);
+dw_mem *dw_mem_allocate(unsigned int n);
 
 // Release all memory back to the OS
-void deallocate(dw_mem *self);
+void dw_mem_deallocate(dw_mem *self);
 
-void *get_block(dw_mem *self);
-void free_block(
+void *dw_mem_malloc(dw_mem *self);
+void dw_mem_free(
         dw_mem *self,
         void *block,  // Block of memory to return
         int *err      // Error return value
-               );
+                );
 
 #endif //DW_FS_MEM_H

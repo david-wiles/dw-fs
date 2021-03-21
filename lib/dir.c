@@ -28,26 +28,26 @@ dw_dir *dw_dir_init()
   return dir;
 }
 
-bool file_exists(
-        dw_dir *dir,
+bool dw_dir_file_exists(
+        dw_dir *self,
         const char *filename
-                )
+                       )
 {
   int err = 0;
-  return search_file(dir, filename, &err) != NULL;
+  return dw_dir_search_file(self, filename, &err) != NULL;
 }
 
-fp_node *search_file(
-        dw_dir *dir,
+fp_node *dw_dir_search_file(
+        dw_dir *self,
         const char *filename,
         int *err
-                    )
+                           )
 {
   // Loop through each file to determine if file exists and find node.
   // Checking the cache first would be unnecessary since that would require
   // strcmp() for each file name anyway
   fp_node *fp;
-  for (fp = dir->head; fp != NULL; fp = fp->next) {
+  for (fp = self->head; fp != NULL; fp = fp->next) {
     if (strcmp(fp->name, filename) == false) {
       return fp;
     }
@@ -57,12 +57,12 @@ fp_node *search_file(
   return NULL;
 }
 
-fp_node *add_entry(
+fp_node *dw_dir_add(
         dw_dir *self,
         void *block,
         const char *filename,
         int *err
-                  )
+                   )
 {
   // Allocate space for a new file
   fp_node *fp = block;
@@ -80,19 +80,22 @@ fp_node *add_entry(
 
   fp->name[i] = '\0';
 
+  time_t now = time(NULL);
   fp->next = self->head;
   fp->data = NULL;
+  fp->create_time = now;
+  fp->mod_time = now;
 
   self->head = fp;
   self->n_files++;
   return fp;
 }
 
-void remove_entry(
+void dw_dir_remove(
         dw_dir *self,
         const char *filename,
         int *err
-                 )
+                  )
 {
   fp_node *last = NULL,
           *fp = NULL;
@@ -118,11 +121,11 @@ void remove_entry(
   self->n_files--;
 }
 
-fp_node **gather_entries(
+fp_node **dw_dir_gather_entries(
         dw_dir *self,
         int *len,
         int *err
-                        )
+                               )
 {
   if (self->n_files == 0) {
     *err = ERR_NOT_EXISTS;

@@ -24,7 +24,7 @@
 dwfs *dwfs_init(unsigned int num_blocks)
 {
   dwfs *self = calloc(1, sizeof(dwfs));
-  self->blocks = allocate(num_blocks);
+  self->blocks = dw_mem_allocate(num_blocks);
   self->dir = dw_dir_init();
   self->tab = ft_init(num_blocks);
   return self;
@@ -32,7 +32,7 @@ dwfs *dwfs_init(unsigned int num_blocks)
 
 void dwfs_free(dwfs *self)
 {
-  deallocate(self->blocks);
+  dw_mem_deallocate(self->blocks);
   dw_dir_free(self->dir);
   ft_free(self->tab);
   free(self);
@@ -45,12 +45,12 @@ void dwfs_create(
                 )
 {
   // Check whether file exists
-  if (file_exists(self->dir, filename) != false) {
+  if (dw_dir_file_exists(self->dir, filename) != false) {
     *err = ERR_NON_UNIQUE_NAME;
     return;
   }
 
-  add_entry(self->dir, get_block(self->blocks), filename, err);
+  dw_dir_add(self->dir, dw_mem_malloc(self->blocks), filename, err);
 }
 
 dw_file dwfs_open(
@@ -59,7 +59,7 @@ dw_file dwfs_open(
         int *err
                  )
 {
-  fp_node *fp = search_file(self->dir, filename, err);
+  fp_node *fp = dw_dir_search_file(self->dir, filename, err);
   if (*err != 0) return (dw_file) {};
 
   ft_open_file(self->tab, fp, err);
@@ -144,7 +144,7 @@ void dwfs_write(
   if (d != NULL) {
     for (; d->next != NULL; d = d->next);
   } else {
-    file->fp->data = get_block(self->blocks);
+    file->fp->data = dw_mem_malloc(self->blocks);
     file->fp->data->bytes = 0;
     file->fp->data->next = NULL;
     d = file->fp->data;
@@ -160,7 +160,7 @@ void dwfs_write(
 
     // Create new data nodes as needed
     if (written < n) {
-      d->next = get_block(self->blocks);
+      d->next = dw_mem_malloc(self->blocks);
 
       // Check that the allocation was successful
       if (d->next == 0) {
@@ -174,6 +174,7 @@ void dwfs_write(
     }
   }
 
+  file->fp->mod_time = time(NULL);
   ft_write_unlock(self->tab, file->name, err);
 }
 
@@ -183,15 +184,21 @@ char **dwfs_dir(
                )
 {
   int n_files = 0;
-  fp_node **entries = gather_entries(self->dir, &n_files, err);
-  if (err != 0) {
+  fp_node **entries = dw_dir_gather_entries(self->dir, &n_files, err);
+  if (*err != 0) {
     return NULL;
   }
 
   char **filenames = calloc(n_files, sizeof(char *));
   for (int i = 0; i < n_files; i++) {
-    filenames[i] = calloc(strlen(entries[i]->name), sizeof(char));
-    strcpy(filenames[i], entries[i]->name);
+    int len = strlen(entries[i]->name);
+    filenames[i] = calloc(len + 1, sizeof(char));
+
+    // Copy entry's filename to the array. We can't use strcpy here
+    for (int str_i = 0; str_i < len; str_i++) {
+      filenames[i][str_i] = entries[i]->name[str_i];
+    }
+    filenames[i][len] = '\0';
   }
 
   free(entries);
@@ -204,18 +211,18 @@ void dwfs_delete(
         int *err
                 )
 {
-  fp_node *fp = search_file(self->dir, name, err);
+  fp_node *fp = dw_dir_search_file(self->dir, name, err);
   if (*err != 0) return;
 
   if (ft_is_open(self->tab, fp->name, err) != false) return;
 
-  remove_entry(self->dir, name, err);
+  dw_dir_remove(self->dir, name, err);
   if (err != 0) return;
 
-  if (fp->data == NULL) free_block(self->blocks, fp->data, err);
+  if (fp->data == NULL) dw_mem_free(self->blocks, fp->data, err);
   if (err != 0) return;
 
-  if (fp != NULL) free_block(self->blocks, fp, err);
+  if (fp != NULL) dw_mem_free(self->blocks, fp, err);
   if (err != 0) return;
 }
 
