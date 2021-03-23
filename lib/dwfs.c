@@ -38,6 +38,24 @@ void dwfs_free(dwfs *self)
   free(self);
 }
 
+static void dw_fp_free_data_node(dw_mem* blocks, data_node *node, int *err)
+{
+  if (node != NULL) {
+    dw_fp_free_data_node(blocks, node->next, err);
+    dw_mem_free(blocks, node, err);
+  }
+}
+
+static void dw_fp_node_free(dw_mem* blocks, fp_node *fp, int *err)
+{
+  if (fp->data != NULL) {
+    dw_fp_free_data_node(blocks, fp->data, err);
+  }
+  dw_mem_free(blocks, fp, err);
+}
+
+
+
 dw_file dwfs_create(
         dwfs *self,
         char *filename,
@@ -223,10 +241,8 @@ void dwfs_delete(
   dw_dir_remove(self->dir, name, err);
   if (err != 0) return;
 
-  if (fp->data == NULL) dw_mem_free(self->blocks, fp->data, err);
-  if (err != 0) return;
+  if (fp->data != NULL) dw_mem_free(self->blocks, fp->data, err);
 
-  if (fp != NULL) dw_mem_free(self->blocks, fp, err);
+  if (fp != NULL) dw_fp_node_free(self->blocks, fp, err);
   if (err != 0) return;
 }
-

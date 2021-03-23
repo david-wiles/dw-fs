@@ -58,6 +58,35 @@ char *read_n(const unsigned char *block, int n)
   return s;
 }
 
+// Read all text from a file
+//
+// Filename specifies the file to read, and text is the
+// char array return value. The file will be opened using 'r' mode.
+// The function returns the size of the array returned
+long read_file(char *filename, char **text)
+{
+  FILE *fp = NULL;
+
+  if ((fp = fopen(filename, "r")) == NULL) {
+    return 0;
+  }
+
+  fseek(fp, 0L, SEEK_END);
+  long size = ftell(fp);
+  rewind(fp);
+
+  if ((*text = malloc(size+1)) == NULL) {
+    return 0;
+  }
+
+  fread(*text, size, 1, fp);
+  fclose(fp);
+
+  (*text)[size] = '\0';
+
+  return size;
+}
+
 START_TEST(test_mem_create)
 {
   dw_mem *mem = dw_mem_allocate(1);
@@ -744,6 +773,28 @@ START_TEST(test_file_delete)
   ck_assert_ptr_null(instance->dir->head);
 
   dwfs_free(instance);
+
+  instance = dwfs_init(1024);
+
+  // Write large file
+  char *f_text = NULL;
+  int f_size = (int) read_file("./asset/hamlet.txt", &f_text);
+  ck_assert_int_gt(f_size, 0);
+  ck_assert_ptr_nonnull(f_text);
+
+  dw_file f = dwfs_create(instance, "hamlet.txt", &err);
+  ck_assert_int_eq(err, 0);
+
+  dwfs_write(instance, &f, (unsigned char *) f_text, f_size, &err);
+  ck_assert_int_eq(err, 0);
+
+  dwfs_close(instance, &f, &err);
+  ck_assert_int_eq(err, 0);
+
+  dwfs_delete(instance, "hamlet.txt", &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_int_eq(instance->dir->n_files, 0);
+  ck_assert_ptr_null(instance->dir->head);
 }
 
 START_TEST(test_file_write)
@@ -781,12 +832,8 @@ START_TEST(test_file_write)
   ck_assert_ptr_nonnull(fp->data);
 
   // On my development machine, the MAX_DATA_SIZE macro expands to 500
-  ck_assert_int_eq(fp->data->bytes, 500);
+  ck_assert_int_eq(fp->data->bytes, MAX_DATA_SIZE > 1000 ? 1000 : MAX_DATA_SIZE);
   ck_assert_str_eq(read_n(fp->data->data, 500),
-                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  ck_assert_ptr_nonnull(fp->data->next);
-  ck_assert_int_eq(fp->data->next->bytes, 500);
-  ck_assert_str_eq(read_n(fp->data->next->data, 500),
                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
   dwfs_free(instance);
@@ -795,7 +842,7 @@ START_TEST(test_file_write)
 START_TEST(test_file_read)
 {
   int err = 0;
-  dwfs *instance = dwfs_init(12);
+  dwfs *instance = dwfs_init(1024);
 
   dwfs_create(instance, "file 1", &err);
   ck_assert_int_eq(err, 0);
@@ -848,6 +895,23 @@ START_TEST(test_file_read)
   ck_assert_str_eq(read_n(read_bytes, 1000),
                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 
+  // Write large file
+  char *f_text = NULL;
+  int f_size = (int) read_file("./asset/hamlet.txt", &f_text);
+  ck_assert_int_gt(f_size, 0);
+  ck_assert_ptr_nonnull(f_text);
+
+  f = dwfs_create(instance, "hamlet.txt", &err);
+  ck_assert_int_eq(err, 0);
+
+  dwfs_write(instance, &f, (unsigned char *) f_text, f_size, &err);
+  ck_assert_int_eq(err, 0);
+
+  read_bytes = dwfs_read(instance, &f, f_size, &n_read, &err);
+  ck_assert_int_eq(err, 0);
+  ck_assert_ptr_nonnull(read_bytes);
+  ck_assert_str_eq(read_n(read_bytes, f_size), f_text);
+
   dwfs_free(instance);
 }
 
@@ -890,7 +954,7 @@ Suite *mem_suite()
 {
   Suite *suite;
   TCase *t_case;
-  suite = suite_create("dwfs_create and destroy");
+  suite = suite_create("dwfs memory operations");
   t_case = tcase_create("Core");
   tcase_add_test(t_case, test_mem_create);
   tcase_add_test(t_case, test_mem_get_block);
@@ -906,7 +970,7 @@ Suite *file_suite()
 {
   Suite *suite;
   TCase *t_case;
-  suite = suite_create("dwfs_create and destroy");
+  suite = suite_create("dwfs file operations");
   t_case = tcase_create("Core");
   tcase_add_test(t_case, test_file_create);
   tcase_add_test(t_case, test_file_delete);
@@ -920,7 +984,7 @@ Suite *ft_suite()
 {
   Suite *suite;
   TCase *t_case;
-  suite = suite_create("dwfs_create and destroy");
+  suite = suite_create("dwfs open file table");
   t_case = tcase_create("Core");
   tcase_add_test(t_case, test_ft_init);
   tcase_add_test(t_case, test_ft_free);
@@ -940,7 +1004,7 @@ Suite *fs_suite()
 {
   Suite *suite;
   TCase *t_case;
-  suite = suite_create("dwfs_create and destroy");
+  suite = suite_create("dwfs directory operations");
   t_case = tcase_create("Core");
   tcase_add_test(t_case, test_dw_fs_init);
   tcase_add_test(t_case, test_dw_fs_free);
@@ -957,14 +1021,14 @@ int main()
   SRunner *runner;
 
   mem = mem_suite();
-  file = file_suite();
   fs = fs_suite();
   ft = ft_suite();
+  file = file_suite();
 
   runner = srunner_create(mem);
-  srunner_add_suite(runner, file);
   srunner_add_suite(runner, fs);
   srunner_add_suite(runner, ft);
+  srunner_add_suite(runner, file);
 
   srunner_run_all(runner, CK_NORMAL);
   number_failed = srunner_ntests_failed(runner);

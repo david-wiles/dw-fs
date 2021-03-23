@@ -37,9 +37,9 @@ clean:
 	rm -rf build
 	rm -rf debug
 
-debug/test: $(OBJ) $(VENDOR_OBJ)
+debug/test:
 	mkdir -p $(dir $@)
-	$(CC) $(TESTFLAGS) $(TESTSRC) $(OBJ) $(VENDOR_OBJ) -o $@ -Ilib $(VENDOR_FLAGS)
+	$(CC) $(TESTFLAGS) $(TESTSRC) $(SRC) $(VENDOR_SRC) -o $@ -Ilib $(VENDOR_FLAGS)
 
 bin/dwfs.o: $(OBJ) $(VENDOR_OBJ)
 	mkdir -p $(dir $@)

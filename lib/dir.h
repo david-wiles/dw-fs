@@ -69,7 +69,7 @@ struct data_node
 dw_dir *dw_dir_init();
 
 // Frees resources associated with the directory
-void dw_dir_free(dw_dir *);
+void dw_dir_free(dw_dir *self);
 
 // Searches for the file with the filename. Returns a boolean indicating whether the file exists
 bool dw_dir_file_exists(
