@@ -66,8 +66,8 @@ void dwfs_free(dwfs *self);
 // empty, but will be placed in the directory and will allocate a single block for the
 // directory node.
 //
-// The file must be opened before it can be written to
-void dwfs_create(
+// Creating a file opens it, so the file should be closed after is it created
+dw_file dwfs_create(
         dwfs *self,     // dwfs instance
         char *filename, // Unique identifier for the file
         int *err        // Any errors that occur are returned in this variable

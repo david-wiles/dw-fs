@@ -51,7 +51,7 @@ int ft_is_open(file_table *self, const char *name, int *err)
   ft_entry *entry = 0;
   int is_open = 0;
 
-  if ((entry = hfind(self, name)) == 0) {
+  if ((entry = hfind(self, name)) == NULL) {
     return is_open;
   }
 
@@ -65,7 +65,7 @@ int ft_is_open(file_table *self, const char *name, int *err)
 void ft_open_file(file_table *self, fp_node *fp, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, fp->name)) == 0) {
+  if ((entry = hfind(self, fp->name)) == NULL) {
     entry = ft_entry_init(fp, 1);
     hadd(self, fp->name, entry);
     return;
@@ -79,7 +79,7 @@ void ft_open_file(file_table *self, fp_node *fp, int *err)
 void ft_close_file(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == 0) {
+  if ((entry = hfind(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
@@ -96,9 +96,9 @@ void ft_close_file(file_table *self, const char *name, int *err)
 void ft_read_lock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  int lock_write = 0;
+  bool lock_write = false;
 
-  if ((entry = hfind(self, name)) == 0) {
+  if ((entry = hfind(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
@@ -112,13 +112,13 @@ void ft_read_lock(file_table *self, const char *name, int *err)
     //
     // If this is not the first thread to unlock for writing, then the
     // write mutex should already be locked
-    lock_write = 1;
+    lock_write = true;
   }
 
   entry->read_mu++;
   pthread_mutex_unlock(&entry->entry_mu);
 
-  if (lock_write != 0) {
+  if (lock_write != false) {
     pthread_mutex_lock(&entry->write_mu);
   }
 
@@ -127,8 +127,8 @@ void ft_read_lock(file_table *self, const char *name, int *err)
 void ft_read_unlock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  int unlock_write = 0;
-  if ((entry = hfind(self, name)) == 0) {
+  bool unlock_write = false;
+  if ((entry = hfind(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
@@ -138,11 +138,11 @@ void ft_read_unlock(file_table *self, const char *name, int *err)
 
   // If this is the last thread to unlock the read lock, also unlock for writing
   if (entry->read_mu == 0) {
-    unlock_write = 1;
+    unlock_write = true;
   }
   pthread_mutex_unlock(&entry->entry_mu);
 
-  if (unlock_write != 0) {
+  if (unlock_write != false) {
     pthread_mutex_unlock(&entry->write_mu);
   }
 }
@@ -150,7 +150,7 @@ void ft_read_unlock(file_table *self, const char *name, int *err)
 void ft_write_lock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == 0) {
+  if ((entry = hfind(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
@@ -162,7 +162,7 @@ void ft_write_lock(file_table *self, const char *name, int *err)
 void ft_write_unlock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == 0) {
+  if ((entry = hfind(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }

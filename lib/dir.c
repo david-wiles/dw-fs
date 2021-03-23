@@ -22,10 +22,63 @@
 
 dw_dir *dw_dir_init()
 {
-  dw_dir *dir = calloc(1, sizeof(dw_dir));
+  dw_dir *dir = NULL;
+
+  if ((dir = calloc(1, sizeof(dw_dir))) == NULL) {
+    return NULL;
+  }
+
+  pthread_mutex_init(&dir->mu, 0);
+  pthread_mutex_init(&dir->w_mu, 0);
+
   dir->head = NULL;
   dir->n_files = 0;
+  dir->read_cnt = 0;
   return dir;
+}
+
+static void dw_dir_read_lock(dw_dir *self)
+{
+  bool lock_write = false;
+  pthread_mutex_lock(&self->mu);
+
+  if (self->read_cnt == 0) {
+    lock_write = true;
+  }
+
+  self->read_cnt++;
+  pthread_mutex_unlock(&self->mu);
+
+  if (lock_write != false) {
+    pthread_mutex_lock(&self->w_mu);
+  }
+}
+
+static void dw_dir_read_unlock(dw_dir *self)
+{
+  bool unlock_write = false;
+  pthread_mutex_lock(&self->mu);
+  self->read_cnt--;
+
+  // If this is the last thread to unlock the read lock, also unlock for writing
+  if (self->read_cnt == 0) {
+    unlock_write = true;
+  }
+  pthread_mutex_unlock(&self->mu);
+
+  if (unlock_write != false) {
+    pthread_mutex_unlock(&self->w_mu);
+  }
+}
+
+static void dw_dir_write_lock(dw_dir *self)
+{
+  pthread_mutex_lock(&self->w_mu);
+}
+
+static void dw_dir_write_unlock(dw_dir *self)
+{
+  pthread_mutex_unlock(&self->w_mu);
 }
 
 bool dw_dir_file_exists(
@@ -43,18 +96,22 @@ fp_node *dw_dir_search_file(
         int *err
                            )
 {
-  // Loop through each file to determine if file exists and find node.
-  // Checking the cache first would be unnecessary since that would require
-  // strcmp() for each file name anyway
-  fp_node *fp;
+  dw_dir_read_lock(self);
+
+  fp_node *fp = NULL;
   for (fp = self->head; fp != NULL; fp = fp->next) {
-    if (strcmp(fp->name, filename) == false) {
-      return fp;
+    if (strcmp(fp->name, filename) == 0) {
+      break;
     }
   }
 
-  *err = ERR_NOT_EXISTS;
-  return NULL;
+  dw_dir_read_unlock(self);
+
+  if (fp == NULL) {
+    *err = ERR_NOT_EXISTS;
+  }
+
+  return fp;
 }
 
 fp_node *dw_dir_add(
@@ -81,6 +138,9 @@ fp_node *dw_dir_add(
   fp->name[i] = '\0';
 
   time_t now = time(NULL);
+
+  dw_dir_write_lock(self);
+
   fp->next = self->head;
   fp->data = NULL;
   fp->create_time = now;
@@ -88,6 +148,9 @@ fp_node *dw_dir_add(
 
   self->head = fp;
   self->n_files++;
+
+  dw_dir_write_unlock(self);
+
   return fp;
 }
 
@@ -99,6 +162,9 @@ void dw_dir_remove(
 {
   fp_node *last = NULL,
           *fp = NULL;
+
+  dw_dir_write_lock(self);
+
   for (fp = self->head; fp != NULL; fp = fp->next) {
     if (strcmp(fp->name, filename) == false) {
       break;
@@ -119,6 +185,8 @@ void dw_dir_remove(
   }
 
   self->n_files--;
+
+  dw_dir_write_unlock(self);
 }
 
 fp_node **dw_dir_gather_entries(
@@ -127,11 +195,14 @@ fp_node **dw_dir_gather_entries(
         int *err
                                )
 {
+  fp_node **entries = NULL;
+
+  dw_dir_read_lock(self);
+
   if (self->n_files == 0) {
     *err = ERR_NOT_EXISTS;
-    return NULL;
   } else {
-    fp_node **entries = calloc(self->n_files, sizeof(fp_node *));
+    entries = calloc(self->n_files, sizeof(fp_node *));
 
     int i = 0;
     for (fp_node *fp = self->head; fp != NULL; fp = fp->next) {
@@ -139,8 +210,11 @@ fp_node **dw_dir_gather_entries(
     }
 
     *len = self->n_files;
-    return entries;
   }
+
+  dw_dir_read_unlock(self);
+
+  return entries;
 }
 
 // Ensure that all nodes have been freed first

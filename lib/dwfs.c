@@ -38,19 +38,23 @@ void dwfs_free(dwfs *self)
   free(self);
 }
 
-void dwfs_create(
+dw_file dwfs_create(
         dwfs *self,
         char *filename,
         int *err
-                )
+                   )
 {
   // Check whether file exists
   if (dw_dir_file_exists(self->dir, filename) != false) {
     *err = ERR_NON_UNIQUE_NAME;
-    return;
+    return (dw_file) {};
   }
 
-  dw_dir_add(self->dir, dw_mem_malloc(self->blocks), filename, err);
+  fp_node *fp = dw_dir_add(self->dir, dw_mem_malloc(self->blocks), filename, err);
+  if (*err != 0) return (dw_file) {};
+
+  ft_open_file(self->tab, fp, err);
+  return (dw_file) {fp->name, fp};
 }
 
 dw_file dwfs_open(

@@ -28,10 +28,15 @@ dwfs *test_init_fs()
   // Initialize fs with four files. 8 blocks should still remain
   int err = 0;
   dwfs *instance = dwfs_init(12);
-  dwfs_create(instance, "file 1", &err);
-  dwfs_create(instance, "file 2", &err);
-  dwfs_create(instance, "file 3", &err);
-  dwfs_create(instance, "file 4", &err);
+  dw_file f1 = dwfs_create(instance, "file 1", &err);
+  dw_file f2 = dwfs_create(instance, "file 2", &err);
+  dw_file f3 = dwfs_create(instance, "file 3", &err);
+  dw_file f4 = dwfs_create(instance, "file 4", &err);
+
+  dwfs_close(instance, &f1, &err);
+  dwfs_close(instance, &f2, &err);
+  dwfs_close(instance, &f3, &err);
+  dwfs_close(instance, &f4, &err);
 
   if (err != 0) {
     printf("Could not initialize fs, %i", err);
@@ -605,10 +610,7 @@ START_TEST(test_file_create)
   dwfs *instance = dwfs_init(12);
 
   int err = 0;
-  dwfs_create(instance, "name", &err);
-
-  dw_file f = dwfs_open(instance, "name", &err);
-  ck_assert_int_eq(err, 0);
+  dw_file f = dwfs_create(instance, "name", &err);
 
   ck_assert_int_eq(err, 0);
   ck_assert_str_eq(f.name, "name");
@@ -622,11 +624,7 @@ START_TEST(test_file_create)
   ck_assert_int_eq(instance->dir->n_files, 1);
 
   err = 0;
-  dwfs_create(instance, "name2", &err);
-
-  f = dwfs_open(instance, "name2", &err);
-  ck_assert_int_eq(err, 0);
-
+  f = dwfs_create(instance, "name2", &err);
   ck_assert_int_eq(err, 0);
   ck_assert_str_eq(f.name, "name2");
   ck_assert_ptr_nonnull(f.fp);
@@ -753,14 +751,10 @@ START_TEST(test_file_write)
   int err = 0;
   dwfs *instance = dwfs_init(12);
 
-  dwfs_create(instance, "file 1", &err);
+  dw_file f = dwfs_create(instance, "file 1", &err);
   ck_assert_int_eq(err, 0);
 
-  fp_node *fp = instance->dir->head;
-  dw_file f = (dw_file) {
-          "file 1",
-          fp
-  };
+  fp_node *fp = f.fp;
 
   dwfs_open(instance, "file 1", &err);
   ck_assert_int_eq(err, 0);
@@ -775,20 +769,10 @@ START_TEST(test_file_write)
   ck_assert_ptr_nonnull(fp->data);
   ck_assert_str_eq(read_n(fp->data->data, 16), "asdfasdfasdfasdf");
 
-  dwfs_create(instance, "file 2", &err);
+  f = dwfs_create(instance, "file 2", &err);
   ck_assert_int_eq(err, 0);
 
-  fp = instance->dir->head;
-
-  ck_assert_str_eq(fp->name, "file 2");
-
-  f = (dw_file) {
-          "file 2",
-          fp
-  };
-
-  dwfs_open(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
+  fp = f.fp;
 
   dwfs_write(instance, &f,
              (unsigned char *) "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -816,9 +800,6 @@ START_TEST(test_file_read)
   dwfs_create(instance, "file 1", &err);
   ck_assert_int_eq(err, 0);
 
-  dwfs_open(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
   fp_node *fp = instance->dir->head;
   dw_file f = (dw_file) {
           "file 1",
@@ -844,9 +825,6 @@ START_TEST(test_file_read)
   ck_assert_str_eq(read_n(read_bytes, 16), "asdfasdfasdfasdf");
 
   dwfs_create(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
-
-  dwfs_open(instance, "file 2", &err);
   ck_assert_int_eq(err, 0);
 
   fp = instance->dir->head;
