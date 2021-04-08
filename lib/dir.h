@@ -40,12 +40,9 @@ typedef struct data_node data_node;
 // files in the directory
 struct dw_dir
 {
-  fp_node *head;        // Pointer to current head of directory
-  int n_files;          // Number of files currently in the directory
-
-  pthread_mutex_t mu;   // Read mutex. Locks the read_cnt
-  pthread_mutex_t w_mu; // Directory modify mutex
-  int read_cnt;         // Number of threads currently reading the directory
+  fp_node *head;       // Pointer to current head of directory
+  int n_files;         // Number of files currently in the directory
+  pthread_rwlock_t mu; // Read-write mutex
 };
 
 // File pointer node. Contains metadata and pointers to other blocks in the file system

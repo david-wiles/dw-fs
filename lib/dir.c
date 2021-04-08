@@ -16,6 +16,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
+
 #include "dir.h"
 #include "err.h"
 
@@ -28,57 +29,10 @@ dw_dir *dw_dir_init()
     return NULL;
   }
 
-  pthread_mutex_init(&dir->mu, 0);
-  pthread_mutex_init(&dir->w_mu, 0);
+  pthread_rwlock_init(&dir->mu, NULL);
 
   dir->head = NULL;
-  dir->n_files = 0;
-  dir->read_cnt = 0;
   return dir;
-}
-
-static void dw_dir_read_lock(dw_dir *self)
-{
-  bool lock_write = false;
-  pthread_mutex_lock(&self->mu);
-
-  if (self->read_cnt == 0) {
-    lock_write = true;
-  }
-
-  self->read_cnt++;
-  pthread_mutex_unlock(&self->mu);
-
-  if (lock_write != false) {
-    pthread_mutex_lock(&self->w_mu);
-  }
-}
-
-static void dw_dir_read_unlock(dw_dir *self)
-{
-  bool unlock_write = false;
-  pthread_mutex_lock(&self->mu);
-  self->read_cnt--;
-
-  // If this is the last thread to unlock the read lock, also unlock for writing
-  if (self->read_cnt == 0) {
-    unlock_write = true;
-  }
-  pthread_mutex_unlock(&self->mu);
-
-  if (unlock_write != false) {
-    pthread_mutex_unlock(&self->w_mu);
-  }
-}
-
-static void dw_dir_write_lock(dw_dir *self)
-{
-  pthread_mutex_lock(&self->w_mu);
-}
-
-static void dw_dir_write_unlock(dw_dir *self)
-{
-  pthread_mutex_unlock(&self->w_mu);
 }
 
 bool dw_dir_file_exists(
@@ -96,7 +50,7 @@ fp_node *dw_dir_search_file(
         int *err
                            )
 {
-  dw_dir_read_lock(self);
+  pthread_rwlock_rdlock(&self->mu);
 
   fp_node *fp = NULL;
   for (fp = self->head; fp != NULL; fp = fp->next) {
@@ -105,7 +59,7 @@ fp_node *dw_dir_search_file(
     }
   }
 
-  dw_dir_read_unlock(self);
+  pthread_rwlock_unlock(&self->mu);
 
   if (fp == NULL) {
     *err = ERR_NOT_EXISTS;
@@ -139,7 +93,7 @@ fp_node *dw_dir_add(
 
   time_t now = time(NULL);
 
-  dw_dir_write_lock(self);
+  pthread_rwlock_wrlock(&self->mu);
 
   fp->next = self->head;
   fp->data = NULL;
@@ -149,7 +103,7 @@ fp_node *dw_dir_add(
   self->head = fp;
   self->n_files++;
 
-  dw_dir_write_unlock(self);
+  pthread_rwlock_unlock(&self->mu);
 
   return fp;
 }
@@ -163,7 +117,7 @@ void dw_dir_remove(
   fp_node *last = NULL,
           *fp = NULL;
 
-  dw_dir_write_lock(self);
+  pthread_rwlock_wrlock(&self->mu);
 
   for (fp = self->head; fp != NULL; fp = fp->next) {
     if (strcmp(fp->name, filename) == false) {
@@ -186,7 +140,7 @@ void dw_dir_remove(
 
   self->n_files--;
 
-  dw_dir_write_unlock(self);
+  pthread_rwlock_unlock(&self->mu);
 }
 
 fp_node **dw_dir_gather_entries(
@@ -197,7 +151,7 @@ fp_node **dw_dir_gather_entries(
 {
   fp_node **entries = NULL;
 
-  dw_dir_read_lock(self);
+  pthread_rwlock_rdlock(&self->mu);
 
   if (self->n_files == 0) {
     *err = ERR_NOT_EXISTS;
@@ -212,7 +166,7 @@ fp_node **dw_dir_gather_entries(
     *len = self->n_files;
   }
 
-  dw_dir_read_unlock(self);
+  pthread_rwlock_unlock(&self->mu);
 
   return entries;
 }

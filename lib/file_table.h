@@ -20,22 +20,21 @@
 #ifndef DW_FS_FILE_TABLE_H
 #define DW_FS_FILE_TABLE_H
 
+#include <stdlib.h>
 #include <pthread.h>
-#include "search_hsearch_r.h"
+
+#include "htable.h"
 #include "dir.h"
 
 
-typedef struct hsearch_data file_table;
+typedef struct htable file_table;
 typedef struct ft_entry ft_entry;
 
 struct ft_entry
 {
-  pthread_mutex_t entry_mu; // Lock modification of entry
-  pthread_mutex_t write_mu; // Lock write/read of files
-
-  int read_mu;  // Synchronize count of files reading
-  int open_cnt; // Number of threads using this file
-  fp_node *fp;  // File pointer to this file
+  pthread_rwlock_t mu; // Read-write lock
+  int open_cnt;        // Number of files open for reading or writing
+  fp_node *fp;         // File pointer to this file
 };
 
 // Initialize a new entry for the file table
@@ -50,7 +49,7 @@ file_table *ft_init(unsigned int size);
 void ft_free(file_table *self);
 
 // Checks whether the file is already open
-int ft_is_open(file_table *self, const char *name, int *err);
+bool ft_is_open(file_table *self, const char *name, int *err);
 
 // Open or close file entries. If the last open file is closed for a filename, the file will
 // be deleted from the file table. Although the maximum number of files is the number of blocks,

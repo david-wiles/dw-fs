@@ -14,7 +14,9 @@
 // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#include "hash_table.h"
+#include <stdlib.h>
+
+#include "htable.h"
 #include "file_table.h"
 #include "err.h"
 
@@ -26,38 +28,35 @@ ft_entry *ft_entry_init(fp_node *fp, int count)
     return NULL;
   }
 
-  pthread_mutex_init(&entry->entry_mu, 0);
-  pthread_mutex_init(&entry->write_mu, 0);
-
-  entry->read_mu = 0;
-  entry->open_cnt = count;
+  pthread_rwlock_init(&entry->mu, NULL);
   entry->fp = fp;
+  entry->open_cnt = 1;
 
   return entry;
 }
 
 file_table *ft_init(unsigned int size)
 {
-  return hinit(size);
+  return htable_create(size);
 }
 
 void ft_free(file_table *self)
 {
-  hfree(self);
+  htable_destroy(self);
 }
 
-int ft_is_open(file_table *self, const char *name, int *err)
+bool ft_is_open(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  int is_open = 0;
+  bool is_open = false;
 
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     return is_open;
   }
 
-  pthread_mutex_lock(&entry->entry_mu);
-  is_open = entry->open_cnt;
-  pthread_mutex_unlock(&entry->entry_mu);
+  pthread_rwlock_rdlock(&entry->mu);
+  is_open = entry->open_cnt != 0;
+  pthread_rwlock_unlock(&entry->mu);
 
   return is_open;
 }
@@ -65,107 +64,76 @@ int ft_is_open(file_table *self, const char *name, int *err)
 void ft_open_file(file_table *self, fp_node *fp, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, fp->name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, fp->name)) == NULL) {
     entry = ft_entry_init(fp, 1);
-    hadd(self, fp->name, entry);
+    htable_set(self, fp->name, entry);
     return;
   }
 
-  pthread_mutex_lock(&entry->entry_mu);
+  pthread_rwlock_rdlock(&entry->mu);
   entry->open_cnt++;
-  pthread_mutex_unlock(&entry->entry_mu);
+  pthread_rwlock_unlock(&entry->mu);
 }
 
 void ft_close_file(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
 
-  pthread_mutex_lock(&entry->entry_mu);
+  pthread_rwlock_rdlock(&entry->mu);
   entry->open_cnt--;
   if (entry->open_cnt == 0) {
-    hdelete(self, name);
+    htable_remove(self, name);
     return;
   }
-  pthread_mutex_unlock(&entry->entry_mu);
+  pthread_rwlock_unlock(&entry->mu);
 }
 
 void ft_read_lock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  bool lock_write = false;
 
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
 
-  pthread_mutex_lock(&entry->entry_mu);
-
-  if (entry->read_mu == 0) {
-    // If this is the first thread to acquire a read lock, we should also
-    // lock the file for writing. This should block until the writing
-    // process unlocks the resource
-    //
-    // If this is not the first thread to unlock for writing, then the
-    // write mutex should already be locked
-    lock_write = true;
-  }
-
-  entry->read_mu++;
-  pthread_mutex_unlock(&entry->entry_mu);
-
-  if (lock_write != false) {
-    pthread_mutex_lock(&entry->write_mu);
-  }
-
+  pthread_rwlock_rdlock(&entry->mu);
 }
 
 void ft_read_unlock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  bool unlock_write = false;
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
 
-  pthread_mutex_lock(&entry->entry_mu);
-  entry->read_mu--;
-
-  // If this is the last thread to unlock the read lock, also unlock for writing
-  if (entry->read_mu == 0) {
-    unlock_write = true;
-  }
-  pthread_mutex_unlock(&entry->entry_mu);
-
-  if (unlock_write != false) {
-    pthread_mutex_unlock(&entry->write_mu);
-  }
+  pthread_rwlock_unlock(&entry->mu);
 }
 
 void ft_write_lock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
 
   // Block until we can acquire the write lock
-  pthread_mutex_lock(&entry->write_mu);
+  pthread_rwlock_wrlock(&entry->mu);
 }
 
 void ft_write_unlock(file_table *self, const char *name, int *err)
 {
   ft_entry *entry = 0;
-  if ((entry = hfind(self, name)) == NULL) {
+  if ((entry = (ft_entry *) htable_get(self, name)) == NULL) {
     *err = ERR_FILE_NOT_OPEN;
     return;
   }
 
-  pthread_mutex_unlock(&entry->write_mu);
+  pthread_rwlock_unlock(&entry->mu);
 }

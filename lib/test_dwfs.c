@@ -15,12 +15,13 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
-#include <check.h>
 #include <printf.h>
 #include <time.h>
+#include <assert.h>
+
 #include "dwfs.h"
 #include "conf.h"
-#include "hash_table.h"
+#include "htable.h"
 
 
 dwfs *test_init_fs()
@@ -87,236 +88,236 @@ long read_file(char *filename, char **text)
   return size;
 }
 
-START_TEST(test_mem_create)
+void test_mem_create()
 {
   dw_mem *mem = dw_mem_allocate(1);
-  ck_assert_ptr_nonnull(mem);
-  ck_assert_ptr_nonnull(mem->bitset);
-  ck_assert_int_eq(mem->n_blocks, 1);
-  ck_assert_int_eq(mem->n_free, 1);
+  assert(mem != NULL);
+  assert(mem->bitset != NULL);
+  assert(mem->n_blocks == 1);
+  assert(mem->n_free == 1);
   dw_mem_deallocate(mem);
 }
 
-START_TEST(test_mem_get_block)
+void test_mem_get_block()
 {
   dw_mem *mem = dw_mem_allocate(1);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   void *block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks, block);
+  assert(block != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks == block);
 
   dw_mem_deallocate(mem);
 
   mem = dw_mem_allocate(12);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 11);
-  ck_assert_ptr_eq(mem->blocks, block);
+  assert(block != NULL);
+  assert(mem->n_free == 11);
+  assert(mem->blocks == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 10);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE), block);
+  assert(block != NULL);
+  assert(mem->n_free == 10);
+  assert(mem->blocks + (BLOCK_SIZE) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 9);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block);
+  assert(block != NULL);
+  assert(mem->n_free == 9);
+  assert(mem->blocks + (BLOCK_SIZE * 2) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 8);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block);
+  assert(block != NULL);
+  assert(mem->n_free == 8);
+  assert(mem->blocks + (BLOCK_SIZE * 3) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 7);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 4), block);
+  assert(block != NULL);
+  assert(mem->n_free == 7);
+  assert(mem->blocks + (BLOCK_SIZE * 4) == block);
 
   dw_mem_deallocate(mem);
 
   mem = dw_mem_allocate(4);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 3);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block);
+  assert(block != NULL);
+  assert(mem->n_free == 3);
+  assert(mem->blocks + (BLOCK_SIZE * 0) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 2);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block);
+  assert(block != NULL);
+  assert(mem->n_free == 2);
+  assert(mem->blocks + (BLOCK_SIZE * 1) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 1);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block);
+  assert(block != NULL);
+  assert(mem->n_free == 1);
+  assert(mem->blocks + (BLOCK_SIZE * 2) == block);
 
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block);
+  assert(block != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks + (BLOCK_SIZE * 3) == block);
 
   // Make sure get_block returns null when there are no free blocks
   block = dw_mem_malloc(mem);
-  ck_assert_ptr_null(block);
-  ck_assert_int_eq(mem->n_free, 0);
+  assert(block == NULL);
+  assert(mem->n_free == 0);
 
   dw_mem_deallocate(mem);
 }
 
-START_TEST(test_mem_free_block_single)
+void test_mem_free_block_single()
 {
   dw_mem *mem = dw_mem_allocate(4);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   void *block = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block);
-  ck_assert_int_eq(mem->n_free, 3);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block);
+  assert(block != NULL);
+  assert(mem->n_free == 3);
+  assert(mem->blocks + (BLOCK_SIZE * 0) == block);
 
   int err = 0;
   dw_mem_free(mem, block, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 0) == 0);
 
   dw_mem_free(mem, block, &err);
-  ck_assert_int_eq(err, ERR_PTR_NOT_ALLOCATED);
+  assert(err == ERR_PTR_NOT_ALLOCATED);
 
   dw_mem_deallocate(mem);
 }
 
-START_TEST(test_mem_free_block_multiple)
+void test_mem_free_block_multiple()
 {
   dw_mem *mem = dw_mem_allocate(4);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   int err = 0;
 
   void *block1 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block1);
-  ck_assert_int_eq(mem->n_free, 3);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
+  assert(block1 != NULL);
+  assert(mem->n_free == 3);
+  assert(mem->blocks + (BLOCK_SIZE * 0) == block1);
 
   void *block2 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block2);
-  ck_assert_int_eq(mem->n_free, 2);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2);
+  assert(block2 != NULL);
+  assert(mem->n_free == 2);
+  assert(mem->blocks + (BLOCK_SIZE * 1) == block2);
 
   void *block3 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block3);
-  ck_assert_int_eq(mem->n_free, 1);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block3);
+  assert(block3 != NULL);
+  assert(mem->n_free == 1);
+  assert(mem->blocks + (BLOCK_SIZE * 2) == block3);
 
   void *block4 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block4);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4);
+  assert(block4 != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks + (BLOCK_SIZE * 3) == block4);
 
   dw_mem_free(mem, block1, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
-  ck_assert_int_eq(mem->n_free, 1);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 0) == 0);
+  assert(mem->n_free == 1);
 
   dw_mem_free(mem, block4, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 3), 0);
-  ck_assert_int_eq(mem->n_free, 2);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 3) == 0);
+  assert(mem->n_free == 2);
 
   dw_mem_free(mem, block3, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 2), 0);
-  ck_assert_int_eq(mem->n_free, 3);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 2) == 0);
+  assert(mem->n_free == 3);
 
   dw_mem_free(mem, block2, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
-  ck_assert_int_eq(mem->n_free, 4);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 1) == 0);
+  assert(mem->n_free == 4);
 
   dw_mem_deallocate(mem);
 }
 
-START_TEST(test_mem_repeated_ops)
+void test_mem_repeated_ops()
 {
   dw_mem *mem = dw_mem_allocate(4);
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
   int err = 0;
 
   void *block1 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block1);
-  ck_assert_int_eq(mem->n_free, 3);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
+  assert(block1 != NULL);
+  assert(mem->n_free == 3);
+  assert(mem->blocks + (BLOCK_SIZE * 0) == block1);
 
   void *block2 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block2);
-  ck_assert_int_eq(mem->n_free, 2);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2);
+  assert(block2 != NULL);
+  assert(mem->n_free == 2);
+  assert(mem->blocks + (BLOCK_SIZE * 1) == block2);
 
   void *block3 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block3);
-  ck_assert_int_eq(mem->n_free, 1);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 2), block3);
+  assert(block3 != NULL);
+  assert(mem->n_free == 1);
+  assert(mem->blocks + (BLOCK_SIZE * 2) == block3);
 
   void *block4 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block4);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4);
+  assert(block4 != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks + (BLOCK_SIZE * 3) == block4);
 
   void *none = dw_mem_malloc(mem);
-  ck_assert_ptr_null(none);
-  ck_assert_int_eq(mem->n_free, 0);
+  assert(none == NULL);
+  assert(mem->n_free == 0);
 
   dw_mem_free(mem, block1, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 0), 0);
-  ck_assert_int_eq(mem->n_free, 1);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 0) == 0);
+  assert(mem->n_free == 1);
 
   void *block1_2 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block1_2);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 0), block1);
+  assert(block1_2 != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks + (BLOCK_SIZE * 0) == block1);
 
   dw_mem_free(mem, block2, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
-  ck_assert_int_eq(mem->n_free, 1);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 1) == 0);
+  assert(mem->n_free == 1);
 
   dw_mem_free(mem, block4, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 3), 0);
-  ck_assert_int_eq(mem->n_free, 2);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 3) == 0);
+  assert(mem->n_free == 2);
 
   void *block2_2 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block2_2);
-  ck_assert_int_eq(mem->n_free, 1);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 1), block2_2);
+  assert(block2_2 != NULL);
+  assert(mem->n_free == 1);
+  assert(mem->blocks + (BLOCK_SIZE * 1) == block2_2);
 
   void *block4_2 = dw_mem_malloc(mem);
-  ck_assert_ptr_nonnull(block4_2);
-  ck_assert_int_eq(mem->n_free, 0);
-  ck_assert_ptr_eq(mem->blocks + (BLOCK_SIZE * 3), block4_2);
+  assert(block4_2 != NULL);
+  assert(mem->n_free == 0);
+  assert(mem->blocks + (BLOCK_SIZE * 3) == block4_2);
 
   dw_mem_free(mem, block2_2, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(bitset_get(mem->bitset, 1), 0);
-  ck_assert_int_eq(mem->n_free, 1);
+  assert(err == 0);
+  assert(bitset_get(mem->bitset, 1) == 0);
+  assert(mem->n_free == 1);
 
   dw_mem_deallocate(mem);
 }
 
 // Repeated operations to ensure longevity
-START_TEST(test_mem_longevity)
+void test_mem_longevity()
 {
   dw_mem *mem = dw_mem_allocate(4);
   void *block = 0;
   int err = 0;
 
-  ck_assert_ptr_nonnull(mem);
+  assert(mem != NULL);
 
   srand(time(0));
 
@@ -331,44 +332,44 @@ START_TEST(test_mem_longevity)
 }
 
 
-START_TEST(test_dw_fs_init)
+void test_dw_fs_init()
 {
   dwfs *instance = dwfs_init(1);
 
-  ck_assert_ptr_nonnull(instance->blocks);
-  ck_assert_int_eq(instance->blocks->n_blocks, 1);
+  assert(instance->blocks != NULL);
+  assert(instance->blocks->n_blocks == 1);
 
   // Test size of allocated blocks
 }
 
-START_TEST(test_dw_fs_free)
+void test_dw_fs_free()
 {
   dwfs *instance = dwfs_init(1);
 
-  ck_assert_ptr_nonnull(instance->blocks);
-  ck_assert_int_eq(instance->blocks->n_blocks, 1);
+  assert(instance->blocks != NULL);
+  assert(instance->blocks->n_blocks == 1);
 
   dwfs_free(instance);
 }
 
-START_TEST(test_dw_fs_search_file)
+void test_dw_fs_search_file()
 {
   dwfs *instance = dwfs_init(12);
 
   int err = 0;
   dwfs_create(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   // Search can find file
   fp_node *f = dw_dir_search_file(instance->dir, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(f);
-  ck_assert_str_eq(f->name, "file 1");
+  assert(err == 0);
+  assert(f != NULL);
+  assert(strcmp(f->name, "file 1") == 0);
 
   // Search for non-existent file returns null pointer
   f = dw_dir_search_file(instance->dir, "file 0", &err);
-  ck_assert_int_eq(err, ERR_NOT_EXISTS);
-  ck_assert_ptr_null(f);
+  assert(err == ERR_NOT_EXISTS);
+  assert(f == NULL);
 
   // Test finds many files
   dwfs_create(instance, "file 2", &err);
@@ -380,346 +381,226 @@ START_TEST(test_dw_fs_search_file)
 
   err = 0;
   f = dw_dir_search_file(instance->dir, "file 7", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(f);
-  ck_assert_str_eq(f->name, "file 7");
+  assert(err == 0);
+  assert(f != NULL);
+  assert(strcmp(f->name, "file 7") == 0);
 
   f = dw_dir_search_file(instance->dir, "file 6", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(f);
-  ck_assert_str_eq(f->name, "file 6");
+  assert(err == 0);
+  assert(f != NULL);
+  assert(strcmp(f->name, "file 6") == 0);
 
   f = dw_dir_search_file(instance->dir, "file 5", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(f);
-  ck_assert_str_eq(f->name, "file 5");
+  assert(err == 0);
+  assert(f != NULL);
+  assert(strcmp(f->name, "file 5") == 0);
 }
 
 
-START_TEST(test_ft_init)
+void test_ft_init()
 {
   file_table *ft = ft_init(1);
-  ck_assert_ptr_nonnull(ft);
+  assert(ft != NULL);
 
   file_table *ft2 = ft_init(2048);
-  ck_assert_ptr_nonnull(ft2);
+  assert(ft2 != NULL);
 }
 
-START_TEST(test_ft_free)
+void test_ft_free()
 {
   file_table *ft = ft_init(1);
-  ck_assert_ptr_nonnull(ft);
+  assert(ft != NULL);
   ft_free(ft);
 
   file_table *ft2 = ft_init(2048);
-  ck_assert_ptr_nonnull(ft2);
+  assert(ft2 != NULL);
   ft_free(ft2);
 }
 
-START_TEST(test_ft_entry_init)
+void test_ft_entry_init()
 {
   ft_entry *entry = ft_entry_init(malloc(1), 1);
-  ck_assert_ptr_nonnull(entry);
-  ck_assert_int_eq(entry->open_cnt, 1);
-  ck_assert_int_eq(entry->read_mu, 0);
+  assert(entry != NULL);
+  assert(entry->open_cnt == 1);
 }
 
-START_TEST(test_ft_is_open)
+void test_ft_is_open()
 {
   file_table *ft = ft_init(4);
-  ck_assert_ptr_nonnull(ft);
+  assert(ft != NULL);
 
   int err = 0;
   bool is_open = ft_is_open(ft, "filename", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(is_open, 0);
+  assert(err == 0);
+  assert(is_open == 0);
 }
 
-START_TEST(test_ft_open_file)
+void test_ft_open_file()
 {
   file_table *ft = ft_init(4);
-  ck_assert_ptr_nonnull(ft);
+  assert(ft != NULL);
 
   int err = 0;
   fp_node fp1 = (fp_node) {"file 1"};
   ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_ptr_nonnull(entry);
-  ck_assert_int_eq(entry->open_cnt, 1);
-  ck_assert_int_eq(entry->read_mu, 0);
+  ft_entry *entry = (ft_entry *) htable_get(ft, fp1.name);
+  assert(entry != NULL);
+  assert(entry->open_cnt == 1);
 
   fp_node fp2 = (fp_node) {"file 2"};
   ft_open_file(ft, &fp2, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry2 = (ft_entry *) hfind(ft, fp2.name);
-  ck_assert_ptr_nonnull(entry2);
-  ck_assert_int_eq(entry2->open_cnt, 1);
-  ck_assert_int_eq(entry2->read_mu, 0);
+  ft_entry *entry2 = (ft_entry *) htable_get(ft, fp2.name);
+  assert(entry2 != NULL);
+  assert(entry2->open_cnt == 1);
 
   ft_open_file(ft, &fp2, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry3 = (ft_entry *) hfind(ft, fp2.name);
-  ck_assert_ptr_nonnull(entry3);
-  ck_assert_int_eq(entry3->open_cnt, 2);
-  ck_assert_int_eq(entry3->read_mu, 0);
+  ft_entry *entry3 = (ft_entry *) htable_get(ft, fp2.name);
+  assert(entry3 != NULL);
+  assert(entry3->open_cnt == 2);
 }
 
-START_TEST(test_ft_close_file)
+void test_ft_close_file()
 {
   file_table *ft = ft_init(4);
-  ck_assert_ptr_nonnull(ft);
+  assert(ft != NULL);
 
   int err = 0;
   fp_node fp1 = (fp_node) {"file 1"};
   ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_ptr_nonnull(entry);
-  ck_assert_int_eq(entry->open_cnt, 1);
-  ck_assert_int_eq(entry->read_mu, 0);
+  ft_entry *entry = (ft_entry *) htable_get(ft, fp1.name);
+  assert(entry != NULL);
+  assert(entry->open_cnt == 1);
 
   ft_close_file(ft, fp1.name, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_ptr_null(entry2);
+  ft_entry *entry2 = (ft_entry *) htable_get(ft, fp1.name);
+  assert(entry2 == NULL);
 
-  ck_assert_int_eq(ft_is_open(ft, "file 1", &err), 0);
+  assert(ft_is_open(ft, "file 1", &err) == 0);
 
   fp_node fp2 = (fp_node) {"file 2"};
   ft_open_file(ft, &fp2, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   ft_open_file(ft, &fp2, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   ft_close_file(ft, fp2.name, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
-  ft_entry *entry3 = (ft_entry *) hfind(ft, fp2.name);
-  ck_assert_ptr_nonnull(entry3);
-  ck_assert_int_eq(entry3->open_cnt, 1);
-  ck_assert_int_eq(entry3->read_mu, 0);
-
-  ft_close_file(ft, fp2.name, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry4 = (ft_entry *) hfind(ft, fp2.name);
-  ck_assert_ptr_null(entry4);
+  ft_entry *entry3 = (ft_entry *) htable_get(ft, fp2.name);
+  assert(entry3 != NULL);
+  assert(entry3->open_cnt == 1);
 
   ft_close_file(ft, fp2.name, &err);
-  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+  assert(err == 0);
+
+  ft_entry *entry4 = (ft_entry *) htable_get(ft, fp2.name);
+  assert(entry4 == NULL);
+
+  ft_close_file(ft, fp2.name, &err);
+  assert(err == ERR_FILE_NOT_OPEN);
 
   fp_node fp3 = (fp_node) {"third file"};
   ft_close_file(ft, fp3.name, &err);
-  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
+  assert(err == ERR_FILE_NOT_OPEN);
 }
 
-START_TEST(test_ft_read_lock) {
-  file_table *ft = ft_init(4);
-  fp_node fp1 = (fp_node) {"file 1"};
-  fp_node fp2 = (fp_node) {"file 2"};
-  int err = 0;
-
-  ft_read_lock(ft, fp2.name, &err);
-  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
-  err = 0;
-
-  ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_read_lock(ft, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry1 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->read_mu, 1);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-
-  ft_read_lock(ft, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->read_mu, 2);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-}
-
-START_TEST(test_ft_read_unlock) {
-  file_table *ft = ft_init(4);
-  fp_node fp1 = (fp_node) {"file 1"};
-  fp_node fp2 = (fp_node) {"file 2"};
-  int err = 0;
-
-  ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_read_lock(ft, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry1 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->read_mu, 1);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-
-  ft_read_unlock(ft, fp1.name, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry2 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->read_mu, 0);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-
-  ft_read_lock(ft, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_read_lock(ft, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry3 = (ft_entry *) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->read_mu, 2);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-}
-
-START_TEST(test_ft_write_lock) {
-  file_table *ft = ft_init(4);
-  fp_node fp1 = (fp_node) {"file 1"};
-  fp_node fp2 = (fp_node) {"file 2"};
-  int err = 0;
-
-  ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_write_lock(ft, fp1.name, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry1 = (ft_entry*) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-  ck_assert_int_eq(entry1->read_mu, 0);
-
-  // We should not be able to acquire the lock
-  ck_assert_int_ne(pthread_mutex_trylock(&entry1->write_mu), 0);
-
-  ft_write_lock(ft, fp2.name, &err);
-  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
-}
-
-START_TEST(test_ft_write_unlock) {
-  file_table *ft = ft_init(4);
-  fp_node fp1 = (fp_node) {"file 1"};
-  fp_node fp2 = (fp_node) {"file 2"};
-  int err = 0;
-
-  ft_open_file(ft, &fp1, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_write_lock(ft, fp1.name, &err);
-  ck_assert_int_eq(err, 0);
-
-  ft_entry *entry1 = (ft_entry*) hfind(ft, fp1.name);
-  ck_assert_int_eq(entry1->open_cnt, 1);
-  ck_assert_int_eq(entry1->read_mu, 0);
-
-  // We should not be able to acquire the lock
-  ck_assert_int_ne(pthread_mutex_trylock(&entry1->write_mu), 0);
-
-  ft_write_unlock(ft, fp1.name, &err);
-  ck_assert_int_eq(err, 0);
-
-  ck_assert_int_eq(pthread_mutex_trylock(&entry1->write_mu), 0);
-
-  ft_write_lock(ft, fp2.name, &err);
-  ck_assert_int_eq(err, ERR_FILE_NOT_OPEN);
-}
-
-
-START_TEST(test_file_create)
+void test_file_create()
 {
   dwfs *instance = dwfs_init(12);
 
   int err = 0;
   dw_file f = dwfs_create(instance, "name", &err);
 
-  ck_assert_int_eq(err, 0);
-  ck_assert_str_eq(f.name, "name");
-  ck_assert_ptr_nonnull(f.fp);
-  ck_assert_int_eq(instance->dir->n_files, 1);
+  assert(err == 0);
+  assert(strcmp(f.name, "name") == 0);
+  assert(f.fp != NULL);
+  assert(instance->dir->n_files == 1);
 
   // Creating a file with the same name should fail
   err = 0;
   dwfs_create(instance, "name", &err);
-  ck_assert_int_eq(err, ERR_NON_UNIQUE_NAME);
-  ck_assert_int_eq(instance->dir->n_files, 1);
+  assert(err == ERR_NON_UNIQUE_NAME);
+  assert(instance->dir->n_files == 1);
 
   err = 0;
   f = dwfs_create(instance, "name2", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_str_eq(f.name, "name2");
-  ck_assert_ptr_nonnull(f.fp);
-  ck_assert_int_eq(instance->dir->n_files, 2);
+  assert(err == 0);
+  assert(strcmp(f.name, "name2") == 0);
+  assert(f.fp != NULL);
+  assert(instance->dir->n_files == 2);
 
   fp_node *fp = instance->dir->head;
 
-  ck_assert_str_eq(fp->name, "name2");
+  assert(strcmp(fp->name,  "name2") == 0);
 
   fp = fp->next;
 
-  ck_assert_str_eq(fp->name, "name");
+  assert(strcmp(fp->name, "name") == 0);
 
   fp = fp->next;
 
-  ck_assert_ptr_null(fp);
+  assert(fp == NULL);
 
   dwfs_free(instance);
 
   // Test create 4 files
   instance = test_init_fs();
-  ck_assert_int_eq(instance->dir->n_files, 4);
+  assert(instance->dir->n_files == 4);
   fp = instance->dir->head;
-  ck_assert_str_eq(fp->name, "file 4");
+  assert(strcmp(fp->name , "file 4") == 0);
   fp = fp->next;
-  ck_assert_str_eq(fp->name, "file 3");
+  assert(strcmp(fp->name , "file 3") == 0);
   fp = fp->next;
-  ck_assert_str_eq(fp->name, "file 2");
+  assert(strcmp(fp->name , "file 2") == 0);
   fp = fp->next;
-  ck_assert_str_eq(fp->name, "file 1");
-  ck_assert_ptr_null(fp->next);
+  assert(strcmp(fp->name , "file 1") == 0);
+  assert(fp->next == NULL);
   dwfs_free(instance);
 }
 
-START_TEST(test_file_delete)
+void test_file_delete()
 {
   dwfs *instance = test_init_fs();
   int err = 0;
 
   // Delete file that does not exist
   dwfs_delete(instance, "file 5", &err);
-  ck_assert_int_eq(err, ERR_NOT_EXISTS);
-  ck_assert_int_eq(instance->dir->n_files, 4);
+  assert(err == ERR_NOT_EXISTS);
+  assert(instance->dir->n_files == 4);
 
   err = 0;
 
   // Delete files in directory order
   dwfs_delete(instance, "file 4", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 3);
-  ck_assert_str_eq(instance->dir->head->name, "file 3");
+  assert(err == 0);
+  assert(instance->dir->n_files == 3);
+  assert(strcmp(instance->dir->head->name, "file 3") == 0);
 
   dwfs_delete(instance, "file 3", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 2);
-  ck_assert_str_eq(instance->dir->head->name, "file 2");
+  assert(err == 0);
+  assert(instance->dir->n_files == 2);
+  assert(strcmp(instance->dir->head->name, "file 2") == 0);
 
   dwfs_delete(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 1);
-  ck_assert_str_eq(instance->dir->head->name, "file 1");
+  assert(err == 0);
+  assert(instance->dir->n_files == 1);
+  assert(strcmp(instance->dir->head->name, "file 1") == 0);
 
   dwfs_delete(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 0);
-  ck_assert_ptr_null(instance->dir->head);
+  assert(err == 0);
+  assert(instance->dir->n_files == 0);
+  assert(instance->dir->head == NULL);
 
   dwfs_free(instance);
 
@@ -727,24 +608,24 @@ START_TEST(test_file_delete)
 
   // Delete files in reverse order
   dwfs_delete(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 3);
-  ck_assert_str_eq(instance->dir->head->name, "file 4");
+  assert(err == 0);
+  assert(instance->dir->n_files == 3);
+  assert(strcmp(instance->dir->head->name, "file 4") == 0);
 
   dwfs_delete(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 2);
-  ck_assert_str_eq(instance->dir->head->name, "file 4");
+  assert(err == 0);
+  assert(instance->dir->n_files == 2);
+  assert(strcmp(instance->dir->head->name, "file 4") == 0);
 
   dwfs_delete(instance, "file 3", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 1);
-  ck_assert_str_eq(instance->dir->head->name, "file 4");
+  assert(err == 0);
+  assert(instance->dir->n_files == 1);
+  assert(strcmp(instance->dir->head->name, "file 4") == 0);
 
   dwfs_delete(instance, "file 4", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 0);
-  ck_assert_ptr_null(instance->dir->head);
+  assert(err == 0);
+  assert(instance->dir->n_files == 0);
+  assert(instance->dir->head == NULL);
 
   dwfs_free(instance);
 
@@ -753,24 +634,24 @@ START_TEST(test_file_delete)
   // Delete files in arbitrary order
 
   dwfs_delete(instance, "file 3", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 3);
-  ck_assert_str_eq(instance->dir->head->name, "file 4");
+  assert(err == 0);
+  assert(instance->dir->n_files == 3);
+  assert(strcmp(instance->dir->head->name, "file 4") == 0);
 
   dwfs_delete(instance, "file 4", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 2);
-  ck_assert_str_eq(instance->dir->head->name, "file 2");
+  assert(err == 0);
+  assert(instance->dir->n_files == 2);
+  assert(strcmp(instance->dir->head->name, "file 2") == 0);
 
   dwfs_delete(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 1);
-  ck_assert_str_eq(instance->dir->head->name, "file 1");
+  assert(err == 0);
+  assert(instance->dir->n_files == 1);
+  assert(strcmp(instance->dir->head->name, "file 1") == 0);
 
   dwfs_delete(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 0);
-  ck_assert_ptr_null(instance->dir->head);
+  assert(err == 0);
+  assert(instance->dir->n_files == 0);
+  assert(instance->dir->head == NULL);
 
   dwfs_free(instance);
 
@@ -779,73 +660,73 @@ START_TEST(test_file_delete)
   // Write large file
   char *f_text = NULL;
   int f_size = (int) read_file("./asset/hamlet.txt", &f_text);
-  ck_assert_int_gt(f_size, 0);
-  ck_assert_ptr_nonnull(f_text);
+  assert(f_size > 0);
+  assert(f_text != NULL);
 
   dw_file f = dwfs_create(instance, "hamlet.txt", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   dwfs_write(instance, &f, (unsigned char *) f_text, f_size, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   dwfs_close(instance, &f, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   dwfs_delete(instance, "hamlet.txt", &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_int_eq(instance->dir->n_files, 0);
-  ck_assert_ptr_null(instance->dir->head);
+  assert(err == 0);
+  assert(instance->dir->n_files == 0);
+  assert(instance->dir->head == NULL);
 }
 
-START_TEST(test_file_write)
+void test_file_write()
 {
   int err = 0;
   dwfs *instance = dwfs_init(12);
 
   dw_file f = dwfs_create(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   fp_node *fp = f.fp;
 
   dwfs_open(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdf", 8, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
-  ck_assert_str_eq(read_n(fp->data->data, 8), "asdfasdf");
+  assert(err == 0);
+  assert(fp->data != NULL);
+  assert(strcmp(read_n(fp->data->data, 8), "asdfasdf") == 0);
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdf", 8, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
-  ck_assert_str_eq(read_n(fp->data->data, 16), "asdfasdfasdfasdf");
+  assert(err == 0);
+  assert(fp->data != NULL);
+  assert(strcmp(read_n(fp->data->data, 16), "asdfasdfasdfasdf") == 0);
 
   f = dwfs_create(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   fp = f.fp;
 
   dwfs_write(instance, &f,
              (unsigned char *) "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
              1000, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
+  assert(err == 0);
+  assert(fp->data != NULL);
 
   // On my development machine, the MAX_DATA_SIZE macro expands to 500
-  ck_assert_int_eq(fp->data->bytes, MAX_DATA_SIZE > 1000 ? 1000 : MAX_DATA_SIZE);
-  ck_assert_str_eq(read_n(fp->data->data, 500),
-                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  assert(fp->data->bytes == MAX_DATA_SIZE > 1000 ? 1000 : MAX_DATA_SIZE);
+  assert(strcmp(read_n(fp->data->data, 500),
+                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == 0);
 
   dwfs_free(instance);
 }
 
-START_TEST(test_file_read)
+void test_file_read()
 {
   int err = 0;
   dwfs *instance = dwfs_init(1024);
 
   dwfs_create(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   fp_node *fp = instance->dir->head;
   dw_file f = (dw_file) {
@@ -854,29 +735,29 @@ START_TEST(test_file_read)
   };
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdf", 8, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
+  assert(err == 0);
+  assert(fp->data != NULL);
 
   unsigned int n_read = 0;
   unsigned char *read_bytes = dwfs_read(instance, &f, 8, &n_read, &err);
-  ck_assert_ptr_nonnull(read_bytes);
-  ck_assert_str_eq(read_n(read_bytes, 8), "asdfasdf");
+  assert(read_bytes != NULL);
+  assert(strcmp(read_n(read_bytes, 8), "asdfasdf") == 0);
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdfasdfasdf", 8, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
+  assert(err == 0);
+  assert(fp->data != NULL);
 
   n_read = 0;
   read_bytes = dwfs_read(instance, &f, 16, &n_read, &err);
-  ck_assert_ptr_nonnull(read_bytes);
-  ck_assert_str_eq(read_n(read_bytes, 16), "asdfasdfasdfasdf");
+  assert(read_bytes != NULL);
+  assert(strcmp(read_n(read_bytes, 16), "asdfasdfasdfasdf") == 0);
 
   dwfs_create(instance, "file 2", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   fp = instance->dir->head;
 
-  ck_assert_str_eq(fp->name, "file 2");
+  assert(strcmp(fp->name, "file 2") == 0);
 
   f = (dw_file) {
           "file 2",
@@ -886,154 +767,94 @@ START_TEST(test_file_read)
   dwfs_write(instance, &f,
              (unsigned char *) "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
              1000, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(fp->data);
+  assert(err == 0);
+  assert(fp->data != NULL);
 
   n_read = 0;
   read_bytes = dwfs_read(instance, &f, 1000, &n_read, &err);
-  ck_assert_ptr_nonnull(read_bytes);
-  ck_assert_str_eq(read_n(read_bytes, 1000),
-                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  assert(read_bytes != NULL);
+  assert(strcmp(read_n(read_bytes, 1000),
+                   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") == 0);
 
   // Write large file
   char *f_text = NULL;
   int f_size = (int) read_file("./asset/hamlet.txt", &f_text);
-  ck_assert_int_gt(f_size, 0);
-  ck_assert_ptr_nonnull(f_text);
+  assert(f_size > 0);
+  assert(f_text != NULL);
 
   f = dwfs_create(instance, "hamlet.txt", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   dwfs_write(instance, &f, (unsigned char *) f_text, f_size, &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   read_bytes = dwfs_read(instance, &f, f_size, &n_read, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_ptr_nonnull(read_bytes);
-  ck_assert_str_eq(read_n(read_bytes, f_size), f_text);
+  assert(err == 0);
+  assert(read_bytes != NULL);
+  assert(strcmp(read_n(read_bytes, f_size), f_text) == 0);
 
   dwfs_free(instance);
 }
 
-START_TEST(test_dir)
+void test_dir()
 {
   dwfs *instance = dwfs_init(256);
-  ck_assert_ptr_nonnull(instance);
+  assert(instance != NULL);
 
   int err = 0;
   dwfs_create(instance, "file 1", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   char **files = dwfs_dir(instance, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_str_eq(files[0], "file 1");
+  assert(err == 0);
+  assert(strcmp(files[0], "file 1") == 0);
 
   dwfs_create(instance, "2nd file", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
   dwfs_create(instance, "another filename", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
   dwfs_create(instance, "file 5", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
   dwfs_create(instance, "file 6", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
   dwfs_create(instance, "f", &err);
-  ck_assert_int_eq(err, 0);
+  assert(err == 0);
 
   files = dwfs_dir(instance, &err);
-  ck_assert_int_eq(err, 0);
-  ck_assert_str_eq(files[0], "f");
-  ck_assert_str_eq(files[1], "file 6");
-  ck_assert_str_eq(files[2], "file 5");
-  ck_assert_str_eq(files[3], "another filename");
-  ck_assert_str_eq(files[4], "2nd file");
-  ck_assert_str_eq(files[5], "file 1");
-}
-
-
-Suite *mem_suite()
-{
-  Suite *suite;
-  TCase *t_case;
-  suite = suite_create("dwfs memory operations");
-  t_case = tcase_create("Core");
-  tcase_add_test(t_case, test_mem_create);
-  tcase_add_test(t_case, test_mem_get_block);
-  tcase_add_test(t_case, test_mem_free_block_single);
-  tcase_add_test(t_case, test_mem_free_block_multiple);
-  tcase_add_test(t_case, test_mem_repeated_ops);
-  tcase_add_test(t_case, test_mem_longevity);
-  suite_add_tcase(suite, t_case);
-  return suite;
-}
-
-Suite *file_suite()
-{
-  Suite *suite;
-  TCase *t_case;
-  suite = suite_create("dwfs file operations");
-  t_case = tcase_create("Core");
-  tcase_add_test(t_case, test_file_create);
-  tcase_add_test(t_case, test_file_delete);
-  tcase_add_test(t_case, test_file_write);
-  tcase_add_test(t_case, test_file_read);
-  suite_add_tcase(suite, t_case);
-  return suite;
-}
-
-Suite *ft_suite()
-{
-  Suite *suite;
-  TCase *t_case;
-  suite = suite_create("dwfs open file table");
-  t_case = tcase_create("Core");
-  tcase_add_test(t_case, test_ft_init);
-  tcase_add_test(t_case, test_ft_free);
-  tcase_add_test(t_case, test_ft_entry_init);
-  tcase_add_test(t_case, test_ft_is_open);
-  tcase_add_test(t_case, test_ft_open_file);
-  tcase_add_test(t_case, test_ft_close_file);
-  tcase_add_test(t_case, test_ft_read_lock);
-  tcase_add_test(t_case, test_ft_read_unlock);
-  tcase_add_test(t_case, test_ft_write_lock);
-  tcase_add_test(t_case, test_ft_write_unlock);
-  suite_add_tcase(suite, t_case);
-  return suite;
-}
-
-Suite *fs_suite()
-{
-  Suite *suite;
-  TCase *t_case;
-  suite = suite_create("dwfs directory operations");
-  t_case = tcase_create("Core");
-  tcase_add_test(t_case, test_dw_fs_init);
-  tcase_add_test(t_case, test_dw_fs_free);
-  tcase_add_test(t_case, test_dw_fs_search_file);
-  tcase_add_test(t_case, test_dir);
-  suite_add_tcase(suite, t_case);
-  return suite;
+  assert(err == 0);
+  assert(strcmp(files[0], "f") == 0);
+  assert(strcmp(files[1], "file 6") == 0);
+  assert(strcmp(files[2], "file 5") == 0);
+  assert(strcmp(files[3], "another filename") == 0);
+  assert(strcmp(files[4], "2nd file") == 0);
+  assert(strcmp(files[5], "file 1") == 0);
 }
 
 int main()
 {
-  int number_failed;
-  Suite *file, *fs, *mem, *ft;
-  SRunner *runner;
+  test_mem_create();
+  test_mem_get_block();
+  test_mem_free_block_single();
+  test_mem_free_block_multiple();
+  test_mem_repeated_ops();
+  test_mem_longevity();
+  test_dw_fs_init();
+  test_dw_fs_free();
+  test_dw_fs_search_file();
+  test_ft_init();
+  test_ft_free();
+  test_ft_entry_init();
+  test_ft_is_open();
+  test_ft_open_file();
+  test_ft_close_file();
+  test_file_create();
+  test_file_delete();
+  test_file_write();
+  test_file_read();
+  test_dir();
 
-  mem = mem_suite();
-  fs = fs_suite();
-  ft = ft_suite();
-  file = file_suite();
+  printf("All tests passed successfully\n");
 
-  runner = srunner_create(mem);
-  srunner_add_suite(runner, fs);
-  srunner_add_suite(runner, ft);
-  srunner_add_suite(runner, file);
-
-  srunner_run_all(runner, CK_NORMAL);
-  number_failed = srunner_ntests_failed(runner);
-  srunner_free(runner);
-
-  return (number_failed == 0) ? 0 : 1;
+  return 0;
 }
 
