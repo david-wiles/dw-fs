@@ -33,6 +33,7 @@
 typedef struct dw_dir dw_dir;
 typedef struct fp_node fp_node;
 typedef struct data_node data_node;
+typedef struct dw_dir_itr dw_dir_itr;
 
 // Directory head node.
 //
@@ -60,6 +61,14 @@ struct data_node
   data_node *next;                   // Link to next data node if there is more data in the file
   int bytes;                         // Number of bytes stored in the data. Used to determine EOF
   unsigned char data[MAX_DATA_SIZE]; // File data contained on this block
+};
+
+// Stores state of iteration through a directory
+// Maintains a read lock until the iterator is closed
+struct dw_dir_itr
+{
+  fp_node *next;
+  dw_dir *dir;
 };
 
 // Initializes the directory structure
@@ -104,12 +113,21 @@ void dw_dir_remove(
         int *err              // error return value
                   );
 
-// Create an array of all directory entry nodes and return to the caller
-// this really isn't a good idea...
-fp_node **dw_dir_gather_entries(
+// Create a new iterator from the given directory. The next element is provided using dw_dir_iterator_next
+//
+// Must acquire a read lock, and maintains that lock until the iterator is closed
+dw_dir_itr dw_dir_iterator(
         dw_dir *self,
-        int *len,
         int *err
-                               );
+                          );
+
+// Get the next file node from the iterator
+fp_node *dw_dir_iterator_next(
+        dw_dir_itr *self,
+        int *err
+                             );
+
+// Close the iterator. Releases the read lock on the directory
+void dw_dir_iterator_close(dw_dir_itr *self);
 
 #endif //DW_FS_DIR_H

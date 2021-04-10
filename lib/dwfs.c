@@ -38,7 +38,7 @@ void dwfs_free(dwfs *self)
   free(self);
 }
 
-static void dw_fp_free_data_node(dw_mem* blocks, data_node *node, int *err)
+static void dw_fp_free_data_node(dw_mem *blocks, data_node *node, int *err)
 {
   if (node != NULL) {
     dw_fp_free_data_node(blocks, node->next, err);
@@ -46,14 +46,13 @@ static void dw_fp_free_data_node(dw_mem* blocks, data_node *node, int *err)
   }
 }
 
-static void dw_fp_node_free(dw_mem* blocks, fp_node *fp, int *err)
+static void dw_fp_node_free(dw_mem *blocks, fp_node *fp, int *err)
 {
   if (fp->data != NULL) {
     dw_fp_free_data_node(blocks, fp->data, err);
   }
   dw_mem_free(blocks, fp, err);
 }
-
 
 
 dw_file dwfs_create(
@@ -205,25 +204,26 @@ char **dwfs_dir(
         int *err
                )
 {
-  int n_files = 0;
-  fp_node **entries = dw_dir_gather_entries(self->dir, &n_files, err);
-  if (*err != 0) {
-    return NULL;
-  }
+  dw_dir_itr itr = dw_dir_iterator(self->dir, err);
+  if (*err != 0) return NULL;
 
-  char **filenames = calloc(n_files, sizeof(char *));
-  for (int i = 0; i < n_files; i++) {
-    int len = strlen(entries[i]->name);
+  char **filenames = calloc(self->dir->n_files, sizeof(char *));
+  fp_node *next = NULL;
+  int i = 0;
+
+  while ((next = dw_dir_iterator_next(&itr, err)) != NULL) {
+    int len = (int) strlen(next->name);
     filenames[i] = calloc(len + 1, sizeof(char));
 
     // Copy entry's filename to the array. We can't use strcpy here
     for (int str_i = 0; str_i < len; str_i++) {
-      filenames[i][str_i] = entries[i]->name[str_i];
+      filenames[i][str_i] = next->name[str_i];
     }
     filenames[i][len] = '\0';
+    i++;
   }
 
-  free(entries);
+  dw_dir_iterator_close(&itr);
   return filenames;
 }
 

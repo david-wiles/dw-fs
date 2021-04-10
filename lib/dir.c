@@ -143,33 +143,37 @@ void dw_dir_remove(
   pthread_rwlock_unlock(&self->mu);
 }
 
-fp_node **dw_dir_gather_entries(
+dw_dir_itr dw_dir_iterator(
         dw_dir *self,
-        int *len,
         int *err
-                               )
+                          )
 {
-  fp_node **entries = NULL;
-
   pthread_rwlock_rdlock(&self->mu);
+  return (dw_dir_itr) {
+          self->head,
+          self
+  };
+}
 
-  if (self->n_files == 0) {
-    *err = ERR_NOT_EXISTS;
-  } else {
-    entries = calloc(self->n_files, sizeof(fp_node *));
-
-    int i = 0;
-    for (fp_node *fp = self->head; fp != NULL; fp = fp->next) {
-      entries[i++] = fp;
-    }
-
-    *len = self->n_files;
+fp_node *dw_dir_iterator_next(
+        dw_dir_itr *self,
+        int *err
+                             )
+{
+  fp_node *next = self->next;
+  if (next == NULL) {
+    return NULL;
   }
 
-  pthread_rwlock_unlock(&self->mu);
-
-  return entries;
+  self->next = next->next;
+  return next;
 }
+
+void dw_dir_iterator_close(dw_dir_itr *self)
+{
+  pthread_rwlock_unlock(&self->dir->mu);
+}
+
 
 // Ensure that all nodes have been freed first
 void dw_dir_free(dw_dir *self)
