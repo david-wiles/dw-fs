@@ -201,6 +201,7 @@ void dwfs_write(
 
 char **dwfs_dir(
         dwfs *self,
+        int *len,
         int *err
                )
 {
@@ -209,18 +210,18 @@ char **dwfs_dir(
 
   char **filenames = calloc(self->dir->n_files, sizeof(char *));
   fp_node *next = NULL;
-  int i = 0;
+  *len = 0;
 
   while ((next = dw_dir_iterator_next(&itr, err)) != NULL) {
-    int len = (int) strlen(next->name);
-    filenames[i] = calloc(len + 1, sizeof(char));
+    int str_len = (int) strlen(next->name);
+    filenames[*len] = calloc(str_len + 1, sizeof(char));
 
     // Copy entry's filename to the array. We can't use strcpy here
-    for (int str_i = 0; str_i < len; str_i++) {
-      filenames[i][str_i] = next->name[str_i];
+    for (int str_i = 0; str_i < str_len; str_i++) {
+      filenames[*len][str_i] = next->name[str_i];
     }
-    filenames[i][len] = '\0';
-    i++;
+    filenames[*len][str_len] = '\0';
+    (*len)++;
   }
 
   dw_dir_iterator_close(&itr);

@@ -120,6 +120,7 @@ void dwfs_write(
 // Reads all files in the directory and returns a list of their names
 char **dwfs_dir(
         dwfs *self, // File system instance
+        int *len,   // Length of the directory list
         int *err    // Errors
                );
 

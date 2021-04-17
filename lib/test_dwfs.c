@@ -807,7 +807,9 @@ void test_dir()
   dwfs_create(instance, "file 1", &err);
   assert(err == 0);
 
-  char **files = dwfs_dir(instance, &err);
+  int len = 0;
+  char **files = dwfs_dir(instance, &len, &err);
+  assert(len == 1);
   assert(err == 0);
   assert(strcmp(files[0], "file 1") == 0);
 
@@ -822,7 +824,8 @@ void test_dir()
   dwfs_create(instance, "f", &err);
   assert(err == 0);
 
-  files = dwfs_dir(instance, &err);
+  files = dwfs_dir(instance, &len, &err);
+  assert(len == 6);
   assert(err == 0);
   assert(strcmp(files[0], "f") == 0);
   assert(strcmp(files[1], "file 6") == 0);
