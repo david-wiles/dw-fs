@@ -1,4 +1,5 @@
-# dw-fs 
+# dw-fs
+
 ## (David Wiles FileSystem)
 
 This is an in-memory filesystem with a flat directory structure. It is loosely based on the FAT filesystem and uses
@@ -6,20 +7,43 @@ links between data blocks for all data structures.
 
 ## Installation
 
-run ```make``` and move the generated file ```dwfs.o``` wherever you want.  
+run ```make```. The resulting executable file is ./dwfs.
+
+This will also run a series of unit tests on the library to ensure it will work on your system. The tests can be run
+without building the project by running ```make test```
 
 ## API
 
 The API is based around the dwfs struct. To use the filesystem, you must first initialize the file system with a fixed
-size, in number of blocks. This memory is used to store the directory structures and file data. 
+size, in number of blocks. This memory is used to store the directory structures and file data.
 
 After initialization, the dwfs instance should be used as an opaque object, and simply passed to functions.
 
 All methods are reentrant.
 
 The details can be found in the code, but all functions are exposed to the user through the dwfs.h header file
+
 ```c
 
+// File system instance struct. This must be initialized before use of any file operations
+// Each dwfs struct contains a pre-allocated block of memory for the files, a reference
+// to the directory data structure, and a reference to the instance's open file table.
+//
+// This struct should be used as a opaque structure, none of the internal data structures
+// should be used directly. Only the dwfs instance and dw_file structs should be used
+struct dwfs
+{
+  dw_mem *blocks;  // Memory manager and allocated blocks
+  dw_dir *dir;     // Directory manager
+  file_table *tab; // Open file table
+};
+
+// The user's file object
+struct dw_file
+{
+  char *name;
+  fp_node *fp;
+};
 
 // Initialize a new file system instance with the specified number of blocks
 // The size of each block must be set during compilation, in conf.h.
@@ -39,8 +63,8 @@ void dwfs_free(dwfs *self);
 // empty, but will be placed in the directory and will allocate a single block for the
 // directory node.
 //
-// The file must be opened before it can be written to
-void dwfs_create(
+// Creating a file opens it, so the file should be closed after is it created
+dw_file dwfs_create(
         dwfs *self,     // dwfs instance
         char *filename, // Unique identifier for the file
         int *err        // Any errors that occur are returned in this variable
@@ -93,6 +117,7 @@ void dwfs_write(
 // Reads all files in the directory and returns a list of their names
 char **dwfs_dir(
         dwfs *self, // File system instance
+        int *len,   // Length of the directory list
         int *err    // Errors
                );
 
