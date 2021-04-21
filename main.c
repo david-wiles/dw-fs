@@ -116,7 +116,7 @@ void *create_lorum_ipsums(void *unused)
   dwfs_close(fs, &second_file, &err);
   if (err != 0) return (void *) err;
 
-  return 0;
+  return (void *) 0;
 }
 
 void *print_file(void *filename)
@@ -132,10 +132,13 @@ void *print_file(void *filename)
   // Write the contents of the file to stdout
   printf("\nFile length: \t%i\nFile contents: \n%s\n", len, (const char *) bytes);
 
+  // dwfs_read returns a copy of the bytes in the file, we must free it ourselves
+  free(bytes);
+
   dwfs_close(fs, &f, &err);
   if (err != 0) return (void *) err;
 
-  return 0;
+  return (void *) 0;
 }
 
 int main()
@@ -143,7 +146,7 @@ int main()
 
   // Initial setup: create the in-memory file system with 512 blocks with default size 2048 bytes
   fs = dwfs_init(512);
-  int err;
+  int err = 0;
 
   // Show directory is empty
 
@@ -152,6 +155,7 @@ int main()
   if (err != 0) return err;
 
   printf("\nDirectory size: %i\n", len);
+  free(files);
 
   pthread_t t1, t2, t3;
 
@@ -183,7 +187,9 @@ int main()
   printf("\nReading directory...\n");
   for (int i = 0; i < len; i++) {
     printf("%s\n", files[i]);
+    free(files[i]);
   }
+  free(files);
 
   // Delete files
   dwfs_delete(fs, "file 1", &err);
@@ -197,6 +203,9 @@ int main()
 
   printf("\nFinished deleting files.\n");
   printf("\nDirectory size: %i\n", len);
+
+  free(files);
+  dwfs_free(fs);
 
   return 0;
 }

@@ -11,7 +11,7 @@ VENDOR_INC := -Ivendor/lemire/cbitset/include -Ivendor/david-wiles/htable
 TESTSRC := lib/test_dwfs.c
 TESTFLAGS := -pthread -fPIC -std=gnu99 -ggdb -Wall -Wextra -Wshadow -fsanitize=undefined -fno-omit-frame-pointer -fsanitize=address
 
-CFLAGS := -pthread -fPIC -std=gnu99 -O3  -Wall -Wextra -Wshadow
+CFLAGS := -pthread -fPIC -std=gnu99 -O3
 
 
 # Copy object file to current directory if all tests succeeded
