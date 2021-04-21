@@ -42,6 +42,14 @@ file_table *ft_init(unsigned int size)
 
 void ft_free(file_table *self)
 {
+  // Free all file entries since the table allocated them
+  htable_itr itr = htable_iterator_mut(self);
+  htable_entry *entry = NULL;
+  while ((entry = htable_iterator_next(&itr)) != NULL) {
+    free(entry->val);
+  }
+
+  htable_iterator_destroy(&itr);
   htable_destroy(self);
 }
 
@@ -86,7 +94,8 @@ void ft_close_file(file_table *self, const char *name, int *err)
   pthread_rwlock_rdlock(&entry->mu);
   entry->open_cnt--;
   if (entry->open_cnt == 0) {
-    htable_remove(self, name);
+    entry = htable_remove(self, name);
+    free(entry);
     return;
   }
   pthread_rwlock_unlock(&entry->mu);

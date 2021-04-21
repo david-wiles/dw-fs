@@ -46,6 +46,7 @@ dwfs *test_init_fs()
   return instance;
 }
 
+// Return value is owned by the caller
 char *read_n(const unsigned char *block, int n)
 {
   char *s = calloc(n + 1, sizeof(char));
@@ -63,7 +64,9 @@ char *read_n(const unsigned char *block, int n)
 //
 // Filename specifies the file to read, and text is the
 // char array return value. The file will be opened using 'r' mode.
-// The function returns the size of the array returned
+// The function returns the size of the array returned.
+//
+// text is owned by the caller
 long read_file(char *filename, char **text)
 {
   FILE *fp = NULL;
@@ -339,7 +342,7 @@ void test_dw_fs_init()
   assert(instance->blocks != NULL);
   assert(instance->blocks->n_blocks == 1);
 
-  // Test size of allocated blocks
+  dwfs_free(instance);
 }
 
 void test_dw_fs_free()
@@ -394,6 +397,8 @@ void test_dw_fs_search_file()
   assert(err == 0);
   assert(f != NULL);
   assert(strcmp(f->name, "file 5") == 0);
+
+  dwfs_free(instance);
 }
 
 
@@ -404,6 +409,9 @@ void test_ft_init()
 
   file_table *ft2 = ft_init(2048);
   assert(ft2 != NULL);
+
+  ft_free(ft);
+  ft_free(ft2);
 }
 
 void test_ft_free()
@@ -419,9 +427,13 @@ void test_ft_free()
 
 void test_ft_entry_init()
 {
-  ft_entry *entry = ft_entry_init(malloc(1), 1);
+  void * data = malloc(1);
+  ft_entry *entry = ft_entry_init(data, 1);
   assert(entry != NULL);
   assert(entry->open_cnt == 1);
+
+  free(data);
+  free(entry);
 }
 
 void test_ft_is_open()
@@ -433,6 +445,8 @@ void test_ft_is_open()
   bool is_open = ft_is_open(ft, "filename", &err);
   assert(err == 0);
   assert(is_open == 0);
+
+  ft_free(ft);
 }
 
 void test_ft_open_file()
@@ -463,6 +477,8 @@ void test_ft_open_file()
   ft_entry *entry3 = (ft_entry *) htable_get(ft, fp2.name);
   assert(entry3 != NULL);
   assert(entry3->open_cnt == 2);
+
+  ft_free(ft);
 }
 
 void test_ft_close_file()
@@ -513,6 +529,8 @@ void test_ft_close_file()
   fp_node fp3 = (fp_node) {"third file"};
   ft_close_file(ft, fp3.name, &err);
   assert(err == ERR_FILE_NOT_OPEN);
+
+  ft_free(ft);
 }
 
 void test_file_create()
@@ -676,6 +694,9 @@ void test_file_delete()
   assert(err == 0);
   assert(instance->dir->n_files == 0);
   assert(instance->dir->head == NULL);
+
+  dwfs_free(instance);
+  free(f_text);
 }
 
 void test_file_write()
@@ -694,12 +715,18 @@ void test_file_write()
   dwfs_write(instance, &f, (unsigned char *) "asdfasdf", 8, &err);
   assert(err == 0);
   assert(fp->data != NULL);
-  assert(strcmp(read_n(fp->data->data, 8), "asdfasdf") == 0);
+
+  char *text = read_n(fp->data->data, 8);
+  assert(strcmp(text, "asdfasdf") == 0);
+  free(text);
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdf", 8, &err);
   assert(err == 0);
   assert(fp->data != NULL);
-  assert(strcmp(read_n(fp->data->data, 16), "asdfasdfasdfasdf") == 0);
+
+  text = read_n(fp->data->data, 16);
+  assert(strcmp(text, "asdfasdfasdfasdf") == 0);
+  free(text);
 
   f = dwfs_create(instance, "file 2", &err);
   assert(err == 0);
@@ -714,9 +741,11 @@ void test_file_write()
 
   // On my development machine, the MAX_DATA_SIZE macro expands to 500
   assert(fp->data->bytes == MAX_DATA_SIZE > 1000 ? 1000 : MAX_DATA_SIZE);
-  assert(strcmp(read_n(fp->data->data, 500),
+  text = read_n(fp->data->data, 500);
+  assert(strcmp(text,
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") ==
          0);
+  free(text);
 
   dwfs_free(instance);
 }
@@ -742,7 +771,11 @@ void test_file_read()
   unsigned int n_read = 0;
   unsigned char *read_bytes = dwfs_read(instance, &f, 8, &n_read, &err);
   assert(read_bytes != NULL);
-  assert(strcmp(read_n(read_bytes, 8), "asdfasdf") == 0);
+
+  char *text = read_n(read_bytes, 8);
+  assert(strcmp(text, "asdfasdf") == 0);
+  free(text);
+  free(read_bytes);
 
   dwfs_write(instance, &f, (unsigned char *) "asdfasdfasdfasdf", 8, &err);
   assert(err == 0);
@@ -751,7 +784,11 @@ void test_file_read()
   n_read = 0;
   read_bytes = dwfs_read(instance, &f, 16, &n_read, &err);
   assert(read_bytes != NULL);
-  assert(strcmp(read_n(read_bytes, 16), "asdfasdfasdfasdf") == 0);
+
+  text = read_n(read_bytes, 16);
+  assert(strcmp(text, "asdfasdfasdfasdf") == 0);
+  free(text);
+  free(read_bytes);
 
   dwfs_create(instance, "file 2", &err);
   assert(err == 0);
@@ -774,9 +811,13 @@ void test_file_read()
   n_read = 0;
   read_bytes = dwfs_read(instance, &f, 1000, &n_read, &err);
   assert(read_bytes != NULL);
-  assert(strcmp(read_n(read_bytes, 1000),
+
+  text = read_n(read_bytes, 1000);
+  assert(strcmp(text,
                 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") ==
          0);
+  free(text);
+  free(read_bytes);
 
   // Write large file
   char *f_text = NULL;
@@ -793,7 +834,12 @@ void test_file_read()
   read_bytes = dwfs_read(instance, &f, f_size, &n_read, &err);
   assert(err == 0);
   assert(read_bytes != NULL);
-  assert(strcmp(read_n(read_bytes, f_size), f_text) == 0);
+
+  text = read_n(read_bytes, f_size);
+  assert(strcmp(text, f_text) == 0);
+  free(text);
+  free(f_text);
+  free(read_bytes);
 
   dwfs_free(instance);
 }
@@ -824,6 +870,11 @@ void test_dir()
   dwfs_create(instance, "f", &err);
   assert(err == 0);
 
+  for (int i = 0; i < len; i++) {
+    free(files[i]);
+  }
+  free(files);
+
   files = dwfs_dir(instance, &len, &err);
   assert(len == 6);
   assert(err == 0);
@@ -833,6 +884,12 @@ void test_dir()
   assert(strcmp(files[3], "another filename") == 0);
   assert(strcmp(files[4], "2nd file") == 0);
   assert(strcmp(files[5], "file 1") == 0);
+
+  for (int i = 0; i < len; i++) {
+    free(files[i]);
+  }
+  free(files);
+  dwfs_free(instance);
 }
 
 int main()

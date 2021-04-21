@@ -48,7 +48,7 @@ dw_mem *dw_mem_allocate(unsigned int n)
 
 void dw_mem_deallocate(dw_mem *self)
 {
-//  bitset_free(mem->bitset); // why does this cause seg faults...
+  bitset_free(self->bitset);
   free(self->blocks);
   free(self);
 }
